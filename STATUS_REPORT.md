@@ -5,11 +5,7 @@ CareBridge is a working app on GitHub at https://github.com/Juwanj3232/carebridg
 https://carebridge-ypuw.onrender.com/ with Claude turned on. The safety screen has a measured result.
 
 ## Verified
-- 54 backend tests pass, with rapidfuzz installed and with the built-in fallback.
-- **AI second opinion** (`backend/second_opinion.py`): when the keyword rules find nothing, Claude Haiku 5.5 reads
-  the message and can only escalate. Tested with a stand-in for the AI (11 tests, and the screens checked in Chrome);
-  not yet run with real Claude. On 30 new phrasings the rules alone catch 0 of 12 emergencies; run
-  `python3 scripts/second_opinion_benchmark.py --ai` for the combined number.
+- 43 backend tests pass, with rapidfuzz installed and with the built-in fallback.
 - Check-in asks for a **preferred language**. Choosing another language (for example Vietnamese) books an interpreter:
   it shows in the staff queue, near the top of the agenda and in the EHR export.
 - The app caps Claude calls per day (`CAREBRIDGE_AI_DAILY_LIMIT`, default 300) and falls back to rules mode past it.
@@ -64,8 +60,8 @@ and a simpler dashboard, after-visit page and For Clinics page.
 
 ## Known limits
 - The safety rules catch every phrasing in the test set, but new wording can still be missed. For example,
-  "I got bit by a snake" gets no flag from the rules. The AI second opinion (when Claude is on), the nurse-check
-  tier and the raw patient text on the dashboard are the backstop. Every miss found in a demo should become a new test phrasing and then a rule.
+  "I got bit by a snake" gets no flag today. The nurse-check tier and the raw patient text on the dashboard are
+  the backstop. Every miss found in a demo should become a new test phrasing and then a rule.
 - Spanish and French after-visit summaries need Claude. Without it, the draft is English and the clinician sees a note saying so.
 - Visits live in memory and reset when the server restarts or a free instance wakes up. Login is demo-grade, and the
   demo password is public in the README.
@@ -76,6 +72,6 @@ and a simpler dashboard, after-visit page and For Clinics page.
 cd /Users/jayflm/dev/carebridge
 cd frontend && npm install && npm run build && cd ..
 python3 server.py                           # http://localhost:8100   staff: dr.demo / carebridge-demo
-python3 -m unittest discover -s tests       # 54 tests
+python3 -m unittest discover -s tests       # 43 tests
 python3 scripts/safety_benchmark.py         # safety numbers
 ```

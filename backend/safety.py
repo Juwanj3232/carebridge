@@ -236,7 +236,6 @@ class SafetyResult:
     ai_allowed: bool = True
     patient_message: dict | None = None
     staff_message: str = ""
-    source: str = "rules"                        # rules | ai (an AI second-opinion flag, see second_opinion.py)
 
     def to_dict(self) -> dict:
         return {
@@ -245,7 +244,6 @@ class SafetyResult:
             "ai_allowed": self.ai_allowed,
             "patient_message": self.patient_message,
             "staff_message": self.staff_message,
-            "source": self.source,
         }
 
 

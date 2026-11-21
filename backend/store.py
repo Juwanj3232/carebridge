@@ -10,7 +10,7 @@ import threading
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from . import billing, followup, intake, qa, safety, second_opinion, summary
+from . import billing, followup, intake, qa, safety, summary
 from .scenarios import SCENARIOS
 
 _LOCK = threading.RLock()
@@ -24,20 +24,12 @@ def _now(offset_min: int = 0) -> str:
     return (datetime.now(timezone.utc) - timedelta(minutes=offset_min)).isoformat(timespec="seconds")
 
 
-def _who(v_id: str, intake_: dict) -> dict:
-    return {"visit_id": v_id, "name": intake_["name"], "callback_phone": intake_.get("callback_phone", "")}
-
-
-def create_visit(body: dict, scenario: str | None = None, minutes_ago: int = 0, use_ai: bool = True) -> dict:
+def create_visit(body: dict, scenario: str | None = None, minutes_ago: int = 0) -> dict:
     p = intake.clean_intake(body)
-    visit_id = uuid.uuid4().hex[:12]
-    # 1. Safety first: plain-code rules, then (only if they found nothing) the AI second opinion, which can only escalate.
-    screen = second_opinion.check(p["symptoms"], p["severity"], p["language"],
-                                  at_clinic=p["channel"] in ("kiosk", "front_desk"), source="check-in",
-                                  who=_who(visit_id, p), use_ai=use_ai).to_dict()
+    screen = safety.screen(p["symptoms"], p["severity"], p["language"]).to_dict()     # 1. safety first, plain code
     tags = intake.detect_tags(p["symptoms"])
     v = {
-        "id": visit_id,
+        "id": uuid.uuid4().hex[:12],
         "created_at": _now(minutes_ago),
         "scenario": scenario if scenario in SCENARIOS else None,
         "intake": p,
@@ -54,8 +46,7 @@ def create_visit(body: dict, scenario: str | None = None, minutes_ago: int = 0, 
     }
     if screen["level"] != "routine":
         v["alerts"].append({"id": uuid.uuid4().hex[:8], "level": "red" if screen["level"] == "emergency" else "amber",
-                            "message": screen["staff_message"], "created_at": v["created_at"], "acknowledged": False,
-                            "source": screen["source"]})
+                            "message": screen["staff_message"], "created_at": v["created_at"], "acknowledged": False})
     with _LOCK:
         VISITS[v["id"]] = v
     return v
@@ -80,8 +71,6 @@ def queue() -> list[dict]:
         "open_followups": sum(f["status"] == "open" for f in v["followup_flags"]),
         "language": v["intake"]["language"], "channel": v["intake"]["channel"],
         "interpreter_language": v["intake"].get("interpreter_language", ""),
-        "ai_flag": v["safety"].get("source") == "ai",
-        "callback_phone": v["intake"].get("callback_phone", ""),
     } for v in sorted(visits, key=key)]
 
 
@@ -208,8 +197,7 @@ def followup_reply(visit_id: str, message: str) -> dict | None:
     if not v["followup"]:
         raise ValueError("Follow-up texts start once your clinician approves your visit summary.")
     f = v["followup"]
-    result = followup.handle_reply(message, f["stage"], v["summary_approved"], v["intake"]["language"],
-                                   who=_who(v["id"], v["intake"]))
+    result = followup.handle_reply(message, f["stage"], v["summary_approved"], v["intake"]["language"])
     with _LOCK:
         f["messages"].append(_msg("patient", message, f["day"]))
         f["messages"].extend(_msg("agent", r, f["day"]) for r in result["replies"])
@@ -241,21 +229,15 @@ def ask(visit_id: str, question: str) -> dict | None:
         return None
     if not v["summary_approved"]:
         raise ValueError("Your visit summary isn't approved yet. You can ask questions once your clinician sends it.")
-    result = qa.answer(question, v["summary_approved"], v["intake"]["language"], who=_who(v["id"], v["intake"]))
+    result = qa.answer(question, v["summary_approved"], v["intake"]["language"])
     entry = {"id": uuid.uuid4().hex[:8], "question": question, "answer": result["answer"], "kind": result["kind"],
              "escalated": result["escalated"], "status": "open" if result["escalated"] else "answered",
              "created_at": _now(), "reply": None}
     with _LOCK:
         v["questions"].append(entry)
-        source = (result.get("safety") or {}).get("source", "rules")
         if result["kind"] == "emergency":
-            message = ("RED FLAG in after-visit question: \"" + question[:200] + "\". Call the patient now." if source == "rules"
-                       else "After-visit question. " + result["safety"]["staff_message"])
             v["alerts"].append({"id": uuid.uuid4().hex[:8], "level": "red", "created_at": entry["created_at"], "acknowledged": False,
-                                "message": message, "source": source})
-        elif source == "ai":
-            v["alerts"].append({"id": uuid.uuid4().hex[:8], "level": "amber", "created_at": entry["created_at"], "acknowledged": False,
-                                "message": "After-visit question. " + result["safety"]["staff_message"], "source": "ai"})
+                                "message": "RED FLAG in after-visit question: \"" + question[:200] + "\". Call the patient now."})
     return entry
 
 
@@ -312,8 +294,7 @@ def seed_demo() -> None:
     """Fill the dashboard queue with the synthetic scenarios so the demo never starts empty."""
     global SAMPLE_VISIT_ID
     for i, (key, s) in enumerate(reversed(list(SCENARIOS.items()))):
-        v = create_visit({**s["intake"], "channel": "kiosk" if key == "bp" else "phone"}, scenario=key, minutes_ago=5 + i * 7,
-                         use_ai=False)      # seeding stays fast and offline
+        v = create_visit({**s["intake"], "channel": "kiosk" if key == "bp" else "phone"}, scenario=key, minutes_ago=5 + i * 7)
         if key == SAMPLE_SCENARIO:
             set_outcome(v["id"], s["outcome"], use_ai=False)
             approve_summary(v["id"], None, {"name": "Dr. Demo (Test Clinician)"})

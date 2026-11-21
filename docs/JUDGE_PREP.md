@@ -11,18 +11,14 @@ Live site: https://carebridge-ypuw.onrender.com/ · Staff sign-in: `dr.demo` / `
    this prep, first caught 15 of 22 emergencies. "I feel like I'm dying, help", "I took too many pills", "the baby is
    blue" and "my child swallowed bleach" got no flag. A second check found more, including "I have a gun and I'm
    thinking about using it" and "my husband won't wake up" (1 of 7). All of these now reach the 911 screen and are in
-   the tests. New wording still slips past the keyword rules: "I got bit by a snake" has no rule word. The AI second
-   opinion (below) is there for exactly that. Know the answer in "Safety" below cold.
+   the tests. New wording can still slip through: "I got bit by a snake" gets no flag today. Know the answer in
+   "Safety" below cold.
 2. **Say "every emergency in our test set", never "we catch every emergency".** The For Clinics page now says
    "every emergency in the test set caught".
 3. **Open the live link 5 minutes early.** The free plan sleeps after 15 idle minutes and takes about a minute to wake.
    Waking or redeploying resets the demo to its five test patients.
 4. **Claude is on in the live site.** Q&A answers and summaries come from Claude there, not the rules. Rehearse the
    demo questions on the live site, not only on a laptop.
-5. **Try the AI second opinion on the live site before judging.** Type "I got bit by a snake" at check-in and confirm
-   you see "This may be an emergency", then an AI FLAG on the dashboard. It was tested with a stand-in for the AI, so
-   the live site is its first run with real Claude. Also run `python3 scripts/second_opinion_benchmark.py --ai` once
-   (about 25 short Claude calls) to get the measured number for the table below.
 
 ## Numbers to know
 
@@ -32,9 +28,8 @@ Live site: https://carebridge-ypuw.onrender.com/ · Staff sign-in: `dr.demo` / `
 | 217 of 217 | Emergencies in the test set sent to the 911 screen, with 0 false alarms on 78 routine messages |
 | 27 of 31 | Emergencies caught on wording never tuned against (the honest number). The original screen caught 12 of 31 |
 | 15 of 22 | Emergencies caught on judge-style messages before we fixed them. All 22 are caught now |
-| 0 of 12 | Emergencies the keyword rules alone catch on 30 new, unusual phrasings ("I got bit by a snake"). This is what the AI second opinion is for; its combined number comes from the `--ai` benchmark run |
 | 0.1 ms | About how long the safety screen takes per message |
-| 54 | Automated backend tests |
+| 43 | Automated backend tests |
 | 3 | Patient languages: English, Spanish, French. Any other language books an interpreter |
 | 300 | Daily cap on Claude calls (about 75 full visits); past it the app uses rules |
 | 5 to 15 cents | Estimated Claude cost per complete visit |
@@ -53,7 +48,6 @@ Live site: https://carebridge-ypuw.onrender.com/ · Staff sign-in: `dr.demo` / `
    summary answers and one it doesn't (it goes to the care team).
 7. Press **Send the day-3 check-in now**, reply "still hurts", and show it land in the staff inbox.
 8. **For Clinics.** Comparison table, "How the AI stays safe", and the privacy and EHR strip.
-9. Optional, if asked about missed wording: the AI second opinion demo in "AI second opinion" below.
 
 ## Safety
 
@@ -62,66 +56,15 @@ Say: "They can, and we measured how often. On wording we'd never seen, the rules
 messages a judge might type, they caught 15 of 22, so we fixed those and added them to the tests. That's why the rules
 are never the only check: anything vague or high-discomfort goes to a nurse, staff always see the patient's own
 words, and every miss we find becomes a test and a rule." Then show `docs/SAFETY_BENCHMARK.md` if asked for method.
-Then: "And for wording no list can predict, an AI second opinion reads every message the rules call routine. It can
-only raise the alarm, never lower it."
-Limit: if the AI is off or past its daily limit, only the rules run, and new wording like "I got bit by a snake" gets
-no flag. If a judge finds a miss live, thank them, say it becomes test phrasing #342, and point to the nurse-check
-backstop.
+Limit: new wording still gets through, for example "I got bit by a snake". If a judge finds one live, thank them, say
+it becomes test phrasing #342, and point to the nurse-check backstop.
 
-## AI second opinion
-
-**What it is.** When the keyword rules find nothing, a fast AI model (Claude Haiku 5.5) reads the patient's message
-and answers one question: could this need care sooner than the visit? It runs at check-in, on after-visit questions
-and on follow-up text replies. Code: `backend/second_opinion.py`.
-
-**What the patient sees** depends on how sure the app is and where the patient is. Kiosk mode means they're at the clinic.
-
-| Who flagged it | At the clinic (kiosk) | At home (phone) |
-|---|---|---|
-| Keyword rules (emergency) | Tell the front desk right away, or call 911 | Same message |
-| AI only, possible emergency | Tell the front desk right away | Call 911 or go to the nearest ER now |
-| AI only, needs a nurse today | Tell the front desk now | Call the clinic now, urgent care if closed, 911 if worse |
-
-**What staff see.** An **AI FLAG** badge in the queue, the patient's own words the AI was worried about, its reason
-in a few words, and the call-back number if the patient left one. Every AI flag also lands in **Possible missed
-rules**, where staff mark it Real miss or False alarm. A real miss shows a line to paste into the safety tests.
-
-**Demo it (30 seconds).** Check-In: type "I got bit by a snake" and press Check in. The patient is told to call 911
-or go to the ER. Turn on Kiosk and do it again: now it says tell the front desk. Clinic Dashboard: point at the AI FLAG
-badge, the brief that says the keyword rules found nothing, and the Possible missed rules list. Press Real miss.
-
-**"Doesn't safety depend on AI now?"**
-Say: "No. The keyword rules still run first and work exactly as before, with no AI. The AI only runs when the rules
-found nothing, and it can only add an alert. If it's down, slow or wrong, the patient gets exactly what they got
-before."
-
-**"What if the AI is wrong?"**
-Say: "If it over-flags, a person checks: the front desk at the clinic, or the clinic's phone line at home. If it
-misses, we're back to the rules and the nurse-check backstop, which is where we were without it. Staff mark every
-flag Real miss or False alarm, so we can see how often each happens."
-
-**"Why tell someone at home to call 911 on the AI's word?"**
-Say: "Only when the AI thinks it may be an emergency. An unneeded ER trip is a bad day; staying home with a venomous
-snake bite can kill. ER triage leans the same way. When the AI is less worried, we send them to the clinic's phone
-line instead, so a nurse decides."
-
-**"How do you know it works?"**
-Say what's true on the day. Built and tested: 11 automated tests with a stand-in for the AI cover escalate-only,
-timeouts, made-up quotes, each message by place and language, and the review list. Measured: on 30 new, unusual
-phrasings, the keyword rules alone catch 0 of 12 emergencies. Run `python3 scripts/second_opinion_benchmark.py --ai`
-before judging to get the combined number and the AI's false alarms on 12 routine messages.
-
-**"Does the patient's message go to an AI company?"**
-Say: "With Claude on, yes. The text the patient typed is sent, never the chart. Before real patients we'd sign a
-Business Associate Agreement with the AI vendor, as with our hosting. That's already in the privacy plan on the
-For Clinics page."
-
-**"What does it cost, and is it fast?"**
-Say: "One short call to a small, fast model per message the rules call routine, counted in the same daily limit as
-everything else. It has a 4-second limit; past that the check-in carries on without it."
-
-**How the rules keep learning.** AI flags marked Real miss are pasted into `tests/safety_cases.py` and get a rule, so
-the next patient who says it is caught instantly, without the AI. The AI finds the gaps; the rules close them.
+**"How would you fix that for good?"**
+Say: "Our next feature is an AI second opinion. When the keyword rules find nothing, a small, fast AI reads the
+message. It can only raise the alarm, never lower it, and it sends the patient to a person: the front desk at the
+clinic, or 911 or the clinic's phone line at home. Every flag the rules missed becomes a new test and a rule. We built
+and tested it, but left it off the public demo site to keep AI calls down; it's for the standalone app." Details are
+in the README under "Future feature: AI second opinion".
 
 **"Why not let the AI decide what's urgent?"**
 Say: "An emergency check has to give the same answer every time, run in a fraction of a millisecond, and keep working
@@ -148,8 +91,8 @@ mode, Spanish and French summaries stay in English, and the clinician is told so
 **"Claude helped write your code. How do you know it's right?"**
 Say: "We didn't take the code on trust. We checked it the way you'd check any new hire's work: by testing what it
 does, not by reading how confident it sounds." Then name the checks:
-* **54 automated tests**, run with no internet and no AI, cover safety, summaries, Q&A, the
-  follow-up texts, languages, the daily AI cap and the AI second opinion (with a stand-in for the AI).
+* **43 automated tests**, run with no internet and no AI, cover safety, summaries, Q&A, the
+  follow-up texts, languages and the daily AI cap.
 * **The safety screen is measured, not assumed.** 341 test phrasings, including held-out sets labelled before
   scoring and scored once (27 of 31, then 15 of 22 on judge-style messages). The misses were real, and we published them.
 * **Checks in a real browser.** Every page was opened in Chrome in light and dark mode, plus the French screens at

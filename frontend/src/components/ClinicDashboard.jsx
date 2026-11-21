@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ArrowRight, Bot, CheckCircle, FileOutput, Lock, LogOut, MessageSquareText, MessageSquareWarning, Quote, RefreshCw,
-  Send, ShieldAlert, Siren, Sparkles, Stethoscope, ThumbsDown, ThumbsUp,
+  ArrowRight, CheckCircle, FileOutput, Lock, LogOut, MessageSquareText, MessageSquareWarning, Quote, RefreshCw,
+  Send, ShieldAlert, Siren, Sparkles, Stethoscope,
 } from 'lucide-react';
 import { api, money, timeAgo } from '../lib/api.js';
 import ExportModal from './ExportModal.jsx';
@@ -12,8 +12,6 @@ const LEVEL = {
   urgent_review: { label: 'Nurse check', cls: 'bg-amber-400 text-amber-950', row: 'border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40' },
   routine: { label: 'Routine', cls: 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200', row: 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900' },
 };
-// An AI second-opinion flag: the keyword rules found nothing, the AI thinks it may need care sooner.
-const AI_BADGE = 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900';
 const PRIORITY = {
   urgent: 'bg-rose-600 text-white', high: 'bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200', normal: 'bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100', routine: 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300',
 };
@@ -21,7 +19,6 @@ const PRIORITY = {
 export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId, setActiveVisitId, scenarios, showToast, goAfter }) {
   const [queue, setQueue] = useState([]);
   const [inbox, setInbox] = useState({ alerts: [], questions: [], followups: [] });
-  const [misses, setMisses] = useState([]);
   const [visit, setVisit] = useState(null);
   const [exportData, setExportData] = useState(null);
   const token = staff?.token;
@@ -37,10 +34,9 @@ export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId,
 
   const refresh = useCallback(async () => {
     if (!token) return;
-    const [q, i, m] = await Promise.all([call('staff/queue'), call('staff/inbox'), call('staff/possible-misses')]);
+    const [q, i] = await Promise.all([call('staff/queue'), call('staff/inbox')]);
     setQueue(q.queue);
     setInbox(i);
-    setMisses(m.misses);
   }, [token, call]);
 
   useEffect(() => {
@@ -75,11 +71,6 @@ export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId,
     showToast('Reply texted to patient');
     refresh();
   };
-  const reviewMiss = async (m, verdict) => {
-    await call(`staff/possible-misses/${m.id}/review`, { method: 'POST', body: { verdict } });
-    showToast(verdict === 'real_miss' ? 'Marked as a real miss: add it to the safety tests' : 'Marked as a false alarm');
-    refresh();
-  };
   const openExport = async () => setExportData(await call(`staff/visits/${visit.id}/export`));
   const resetDemo = async () => {
     await call('staff/reset-demo', { method: 'POST', body: {} });
@@ -102,7 +93,6 @@ export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId,
       </div>
 
       <Inbox inbox={inbox} resolve={resolve} resolveFollowup={resolveFollowup} select={setActiveVisitId} />
-      <PossibleMisses misses={misses} review={reviewMiss} select={setActiveVisitId} />
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <aside className="xl:col-span-3 card p-4 space-y-2 h-fit">
@@ -112,10 +102,7 @@ export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId,
               className={`w-full text-left rounded-xl border p-3 transition ${LEVEL[v.level].row} ${v.id === activeVisitId ? 'ring-2 ring-red-600' : 'hover:border-neutral-400 dark:hover:border-neutral-600'}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-bold truncate">{v.name}</span>
-                <span className="flex items-center gap-1 shrink-0">
-                  {v.ai_flag && <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${AI_BADGE}`}><Bot className="w-3 h-3" /> AI FLAG</span>}
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${LEVEL[v.level].cls}`}>{LEVEL[v.level].label}</span>
-                </span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${LEVEL[v.level].cls}`}>{LEVEL[v.level].label}</span>
               </div>
               <p className="text-xs text-neutral-600 dark:text-neutral-300 truncate mt-0.5">{v.chief_complaint}</p>
               <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1 flex flex-wrap gap-x-2">
@@ -244,47 +231,6 @@ function Inbox({ inbox, resolve, resolveFollowup, select }) {
   );
 }
 
-// AI second-opinion flags the keyword rules missed. Staff mark each one: real misses become new safety tests and
-// rules (copy the test line into tests/safety_cases.py), false alarms show where the AI over-flags. Hidden when empty.
-function PossibleMisses({ misses, review, select }) {
-  if (!misses.length) return null;
-  const open = misses.filter((m) => m.status === 'open').length;
-  return (
-    <div className="card p-4 space-y-3">
-      <div>
-        <h2 className="text-sm font-bold flex items-center gap-1.5"><Bot className="w-4 h-4 text-red-700 dark:text-red-400" /> Possible missed rules ({open} to review)</h2>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">The AI second opinion flagged these; the keyword rules did not. Is each one a real miss?</p>
-      </div>
-      {misses.map((m) => (
-        <div key={m.id} className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 text-sm space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className={`font-bold px-1.5 py-0.5 rounded ${m.ai_level === 'emergency' ? 'bg-rose-600 text-white' : 'bg-amber-400 text-amber-950'}`}>
-              {m.ai_level === 'emergency' ? 'Possible emergency' : 'Nurse today'}
-            </span>
-            <span className="text-neutral-500 dark:text-neutral-400">{m.source} · {m.name || 'patient'} · {timeAgo(m.created_at)}</span>
-            {m.visit_id && <button type="button" className="ml-auto font-semibold text-red-800 dark:text-red-200 hover:underline" onClick={() => select(m.visit_id)}>Open brief</button>}
-          </div>
-          <p className="text-neutral-900 dark:text-neutral-100">"{m.text}"</p>
-          <p className="text-xs text-neutral-600 dark:text-neutral-300">AI: {m.reason}</p>
-          {m.status === 'open' ? (
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button type="button" className="btn-dark !py-1 !px-2.5 !text-xs" onClick={() => review(m, 'real_miss')}><ThumbsUp className="w-3.5 h-3.5" /> Real miss</button>
-              <button type="button" className="btn-ghost !py-1 !px-2.5 !text-xs" onClick={() => review(m, 'false_alarm')}><ThumbsDown className="w-3.5 h-3.5" /> False alarm</button>
-            </div>
-          ) : (
-            <div className="text-xs text-neutral-600 dark:text-neutral-300 space-y-1">
-              <p><strong>{m.verdict === 'real_miss' ? 'Real miss' : 'False alarm'}</strong> · reviewed by {m.reviewed_by}</p>
-              {m.verdict === 'real_miss' && (
-                <p>Add to <code>tests/safety_cases.py</code>, then write a rule: <code className="block mt-1 px-2 py-1 rounded bg-neutral-100 dark:bg-neutral-800 break-all">{m.test_case}</code></p>
-              )}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function Brief({ visit, openExport }) {
   const b = visit.brief;
   const lvl = LEVEL[visit.safety.level];
@@ -300,7 +246,6 @@ function Brief({ visit, openExport }) {
             {visit.intake.name} · {visit.intake.insurance.toUpperCase()} · checked in {timeAgo(visit.created_at)} via {visit.intake.channel}
             {visit.intake.language !== 'en' && ` · prefers ${languageName(visit.intake.language)}`}
             {visit.intake.interpreter_language && <strong className="text-amber-800 dark:text-amber-200"> · needs a {visit.intake.interpreter_language} interpreter</strong>}
-            {visit.intake.callback_phone && <> · call-back <a className="font-semibold underline" href={`tel:${visit.intake.callback_phone.replace(/[^\d+]/g, '')}`}>{visit.intake.callback_phone}</a></>}
           </p>
         </div>
         <button type="button" onClick={openExport} className="btn-ghost !py-1.5 !text-xs"><FileOutput className="w-4 h-4" /> Export to EHR</button>
@@ -310,13 +255,9 @@ function Brief({ visit, openExport }) {
         <div className={`rounded-xl border-2 p-3 text-sm flex items-start gap-2 ${visit.safety.level === 'emergency' ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/40 text-rose-950 dark:text-rose-200' : 'border-amber-400 bg-amber-50 dark:bg-amber-950/40 text-amber-950 dark:text-amber-200'}`}>
           <ShieldAlert className="w-5 h-5 shrink-0" />
           <div>
-            <p className="font-bold flex items-center gap-1.5">
-              {visit.safety.source === 'ai'
-                ? 'AI second opinion (the keyword rules found nothing, so please check)'
-                : 'Safety screen (plain-code rules, ran before any AI)'}
-            </p>
+            <p className="font-bold">Safety screen (plain-code rules, ran before any AI)</p>
             <p>{visit.safety.staff_message}</p>
-            {visit.safety.source !== 'ai' && !visit.safety.ai_allowed && <p className="text-xs mt-1">AI was not used for this check-in.</p>}
+            {!visit.safety.ai_allowed && <p className="text-xs mt-1">AI was not used for this check-in.</p>}
           </div>
         </div>
       )}

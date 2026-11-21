@@ -232,6 +232,4 @@ def clean_intake(body: dict) -> dict:
         # A language the app can't screen (Vietnamese, ASL, ...): the app stays in `language`, staff book an interpreter.
         "interpreter_language": re.sub(r"[^\w\s()'-]", "", str(body.get("interpreter_language") or "")).strip()[:40],
         "channel": body.get("channel") if body.get("channel") in ("phone", "kiosk", "front_desk") else "phone",
-        # Optional: lets staff call back a patient who checked in from home and was flagged.
-        "callback_phone": re.sub(r"[^\d\s()+.-]", "", str(body.get("callback_phone") or "")).strip()[:25],
     }

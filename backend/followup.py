@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 
-from . import languages, qa, safety, second_opinion
+from . import languages, qa, safety
 from .safety import normalize
 
 CHECKIN_DAYS = 3
@@ -147,7 +147,7 @@ def _flag(level: str, reason: str) -> dict:
     return {"level": level, "reason": reason}
 
 
-def handle_reply(message: str, stage: str, summary: dict | None, language: str, who: dict | None = None) -> dict:
+def handle_reply(message: str, stage: str, summary: dict | None, language: str) -> dict:
     """Decide what the agent says back and whether a person must see it.
 
     Returns {"replies": [str], "flag": None | {"level": red|amber|request, "reason": str}, "stage": str}.
@@ -156,17 +156,15 @@ def handle_reply(message: str, stage: str, summary: dict | None, language: str, 
     lang = _lang(language)
     norm = normalize(message)
 
-    # 1. Safety first, exactly like check-in: plain-code rules, then the AI second opinion if they found nothing.
-    screen = second_opinion.check(message, None, lang, at_clinic=False, source="follow-up reply", who=who)
-    ai_msg = screen.patient_message if screen.source == "ai" else None
+    # 1. Safety first, exactly like check-in. Plain code, no AI.
+    screen = safety.screen(message, None, lang)
     if screen.level == "emergency":
-        reply = f"{ai_msg['title']}. {ai_msg['body']}" if ai_msg else text("emergency", lang)
+        reply = text("emergency", lang)
         crisis = (screen.patient_message or {}).get("crisis")
         return {"replies": [reply + (f" {crisis}" if crisis else "")], "stage": stage,
                 "flag": _flag("red", screen.staff_message.replace("See patient now", "Call the patient now"))}
     if screen.level == "urgent_review":
-        reply = f"{ai_msg['title']}. {ai_msg['body']}" if ai_msg else text("urgent", lang)
-        return {"replies": [reply], "stage": stage,
+        return {"replies": [text("urgent", lang)], "stage": stage,
                 "flag": _flag("amber", screen.staff_message.replace("Check on patient within 10 minutes", "Call the patient today"))}
 
     # 2. Not getting better: always a person.
@@ -182,7 +180,7 @@ def handle_reply(message: str, stage: str, summary: dict | None, language: str, 
 
     # 4. A question: answer only from the approved summary, otherwise a person answers.
     if summary and ("?" in message or QUESTION_START.match(norm)):
-        result = qa.answer(message, summary, lang, screen=screen)        # already screened above
+        result = qa.answer(message, summary, lang)
         if not result.get("escalated"):
             return {"replies": [result["answer"]], "stage": stage, "flag": None}
         return {"replies": [result["answer"]], "stage": "with_care_team",

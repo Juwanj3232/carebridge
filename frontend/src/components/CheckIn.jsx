@@ -4,7 +4,7 @@ import { api } from '../lib/api.js';
 import { DURATIONS, LANGUAGES, t } from '../lib/i18n.js';
 
 const EMPTY = { name: '', insurance: 'ppo', symptoms: '', duration: '4-7 days', severity: 5, meds: '', allergies: '', reading_level: 'simple',
-  needs_interpreter: false, interpreter_language: '', callback_phone: '' };
+  needs_interpreter: false, interpreter_language: '' };
 
 function severityTone(n) {
   if (n >= 8) return 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-200';
@@ -39,8 +39,7 @@ export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast
       const r = await api('intake', {
         method: 'POST',
         body: { ...form, language: lang, channel: kiosk ? 'kiosk' : 'phone', scenario,
-          interpreter_language: form.needs_interpreter ? form.interpreter_language : '',
-          callback_phone: kiosk ? '' : form.callback_phone },
+          interpreter_language: form.needs_interpreter ? form.interpreter_language : '' },
       });
       setResult(r);
       onCheckedIn(r.visit_id);
@@ -137,15 +136,6 @@ export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast
           </div>
         </div>
 
-        {!kiosk && (
-          <div>
-            <label htmlFor="callback" className="label">{s.callback}</label>
-            <input id="callback" type="tel" autoComplete="tel" maxLength={25} className="field" value={form.callback_phone}
-              onChange={set('callback_phone')} placeholder={s.callbackPh} aria-describedby="callback-help" />
-            <p id="callback-help" className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1">{s.callbackHelp}</p>
-          </div>
-        )}
-
         {error && <p className="text-sm text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl px-3 py-2">{error}</p>}
 
         <button type="submit" disabled={busy || !form.symptoms.trim()} className="btn-primary w-full">
@@ -192,9 +182,6 @@ function ResultPanel({ s, result, kiosk, goClinic, startOver }) {
           <div role="alert" className="rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-1.5">
             <h2 className="text-base font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> {msg.title}</h2>
             <p className="text-sm text-amber-950 dark:text-amber-200 leading-relaxed">{msg.body}</p>
-            {msg.phone && (
-              <a href={`tel:${msg.phone.replace(/[^\d+]/g, '')}`} className="btn-dark w-full !mt-3"><Phone className="w-4 h-4" /> {s.callClinic} {msg.phone}</a>
-            )}
           </div>
         )}
 

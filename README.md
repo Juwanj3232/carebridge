@@ -26,38 +26,21 @@ The bar at the top of every page loads a test patient with one click.
      is told to tell the front desk right away or call 911.
    * Typos still count: "chest pian" is read as "chest pain". Unclear worries, like "my heart feels weird", are sent
      to a nurse to check.
-   * **AI second opinion.** Keyword rules can't know every way to describe an emergency: "I got bit by a snake" has
-     no emergency word. So when the rules find nothing, a fast AI model (Claude Haiku 5.5) reads the message too.
-     It can only raise the alarm, never lower it. What the patient sees depends on how sure the app is and where
-     the patient is:
-
-     | Who flagged it | At the clinic (kiosk) | At home (phone) |
-     |---|---|---|
-     | Keyword rules (emergency) | Tell the front desk right away, or call 911 | Same message |
-     | AI only, possible emergency | Tell the front desk right away | Call 911 or go to the nearest ER now |
-     | AI only, needs a nurse today | Tell the front desk now | Call the clinic now (button), urgent care if closed, 911 if worse |
-
-     Patients checking in from home can leave an optional call-back number for staff. If the AI is off, slow
-     (over 4 seconds) or past the daily limit, the check-in carries on with the rules' answer.
 2. **Clinic Dashboard (the staff, during the visit).** Staff sign in first.
-   * The list of patients puts the most urgent at the top, marked RED FLAG or Nurse check. An **AI FLAG** badge
-     means the AI second opinion raised it, not the keyword rules, so a person should check.
+   * The list of patients puts the most urgent at the top, marked RED FLAG or Nurse check.
    * Each patient has a 30-second brief for the doctor, built from the patient's own words.
    * **Export to EHR** turns the visit into a note the clinic's records system could take in.
    * The doctor types visit notes and presses **Draft patient summary**. They check each line against their notes,
      then press **Approve and send**. Nothing reaches the patient before a doctor approves it.
    * The inbox at the top shows patient texts and questions that need a person to answer.
-   * **Possible missed rules** lists every message the AI flagged but the keyword rules didn't. Staff mark each one
-     **Real miss** or **False alarm**. A real miss shows a line to paste into the safety tests, then a rule gets
-     written for it, so the keyword rules keep learning.
 3. **After-Visit & Costs (the patient, after the visit).**
    * The patient reads the summary their doctor approved. What to do at home comes first.
    * A cost breakdown shows what the visit and medicines may cost, and how much a generic medicine saves.
    * **Ask about your visit** answers questions using only what the doctor approved. Anything else goes to the clinic.
    * Before a patient's own summary is approved, the page shows a sample (Test Patient Maya).
    * **Follow-up texts:** 3 days later, the app texts "Is your ear feeling better?" and asks if they need anything.
-     Every reply gets the same safety check, including the AI second opinion. Emergencies get 911 instructions, and
-     replies like "not better" go to the staff inbox. Questions under **Ask about your visit** are checked the same way. To skip the wait, press **Send the day-3 check-in now**.
+     Every reply gets the same safety check. Emergencies get 911 instructions, and replies like "not better" go to
+     the staff inbox. To skip the wait, press **Send the day-3 check-in now**.
 4. **For Clinics (clinic owners).**
    * A table compares CareBridge with other check-in tools.
    * **How the AI stays safe** explains the safety rules in plain words.
@@ -91,14 +74,12 @@ and the modules that use it, its red-flag rules in `backend/safety.py`, and test
 | `backend/auth.py` | Demo staff login: PBKDF2 passwords, signed 8-hour tokens, doctor-only approval. |
 | `backend/savings.py` | Savings calculator and pricing tiers (not shown in the UI for now). |
 | `backend/ai.py` | Optional Claude call (`claude-opus-5-5`, structured JSON output, server-side refusal fallback, daily call cap). Returns None on any failure so rules take over. |
-| `backend/second_opinion.py` | AI second opinion (`claude-haiku-5-5`) on messages the keyword rules call routine: can only escalate, 4-second limit, patient message by place, and the possible-missed-rules log. |
 | `backend/scenarios.py` | Synthetic "Test Patient" cases. |
 | `frontend/` | React, Vite and Tailwind UI. `src/lib/i18n.js` and `src/lib/clinics-i18n.js` hold the English, Spanish and French text. |
 | `tests/test_backend.py` | Backend tests: safety, intake, summaries, Q&A, follow-up agent, languages, interpreter requests, AI cap. |
 | `tests/safety_cases.py` | The 341 safety test phrasings: misspellings, slang, Spanish, French, negations, judge-style messages, routine messages, spelling traps. |
 | `scripts/safety_benchmark.py` | Scores the safety screen on those phrasings and times it. |
 | `scripts/claude_live_check.py` | Runs each Claude step once and shows whether Claude answered. |
-| `scripts/second_opinion_benchmark.py` | Keyword rules alone vs. rules plus the AI second opinion, on 30 new phrasings never used to tune the rules (`--ai` makes real Claude calls). |
 | `docs/SAFETY_BENCHMARK.md` | Safety screen results and exactly how they were measured. |
 | `docs/JUDGE_PREP.md` | Each judge question, what we built, where to show it, and what to say. |
 | `STATUS_REPORT.md` | Where the project stands. |
@@ -114,8 +95,6 @@ Staff (Bearer token): `GET /api/staff/queue`, `/api/staff/inbox`, `/api/staff/vi
 `/api/staff/visits/<id>/export`;
 `POST /api/staff/visits/<id>/outcome`, `/approve` (doctor only), `/alerts/<aid>/ack`, `/questions/<qid>/resolve`,
 `/followups/<fid>/resolve`, `/api/staff/reset-demo`.
-AI second opinion: `GET /api/staff/possible-misses`, `POST /api/staff/possible-misses/<id>/review`
-(`{"verdict": "real_miss"}` or `"false_alarm"`).
 
 ## Limits (say these before a judge finds them)
 
@@ -123,17 +102,41 @@ AI second opinion: `GET /api/staff/possible-misses`, `POST /api/staff/possible-m
 * Safety rules are keyword lists with spelling tolerance. On 341 test phrasings every emergency reached the 911 screen
   with 0 false alarms, but on wording we had not tuned against, 27 of 31 were caught, and 15 of 22 on judge-style messages written later
   (`docs/SAFETY_BENCHMARK.md`).
-  Unusual wording can still be missed: "I got bit by a snake" gets no flag from the keyword rules. That is why the
-  AI second opinion reads what the rules call routine, vague wording and high discomfort go to a nurse, and staff
-  always see the raw patient text.
-* The AI second opinion needs Claude. Without a key, or past the daily limit, only the keyword rules run. It is
-  one extra short call per message the rules call routine, counted in the same daily limit. It has not been measured
-  with Claude yet: on 30 new phrasings the rules alone caught 0 of 12 emergencies, and `--ai` in
-  `scripts/second_opinion_benchmark.py` measures the combined number. The AI can also over-flag, so its false alarms
-  need measuring too.
+  Unusual wording can still be missed: "I got bit by a snake" gets no flag today. That is why vague wording and
+  high discomfort go to a nurse, and staff always see the raw patient text.
 * Rules-mode Q&A is cautious: it escalates when unsure (for example "How long do I take it?"), which is the safe failure.
 * Spanish and French after-visit summaries need Claude; in rules mode the draft is English and the clinician is told so.
   The clinic dashboard (staff) stays in English; every other screen follows the language menu.
 * Follow-up texts appear in the app only. Real SMS needs a texting provider and patient consent to receive texts.
   The day-3 check-in is sent when the server next handles a request after it comes due, not by a background scheduler.
 * The FHIR export uses free text, not SNOMED/ICD/RxNorm codes, and is not sent anywhere.
+
+## Future feature: AI second opinion
+
+Keyword rules can't know every way to describe an emergency. "I got bit by a snake" has no emergency word, so the
+safety check misses it today. The planned fix is an AI second opinion. It is switched off for the website because it
+would add a Claude call for every routine message on a public demo link. It fits a standalone app, where each clinic
+runs it with its own key and limits.
+
+How it would work:
+* **Only when the rules find nothing.** A small, fast model (Claude Haiku 5.5) reads the message at check-in, on
+  after-visit questions and on follow-up text replies, and answers one question: could this need care sooner than
+  the visit?
+* **It can only raise the alarm, never lower it.** The keyword rules still run first, with no AI. If the AI is off,
+  slower than 4 seconds or past the daily limit, the patient gets exactly what they get today.
+* **The patient is sent to a person, based on where they are:**
+
+  | Who flagged it | At the clinic (kiosk) | At home (phone) |
+  |---|---|---|
+  | AI only, possible emergency | Tell the front desk right away | Call 911 or go to the nearest ER now |
+  | AI only, needs a nurse today | Tell the front desk now | Call the clinic now, urgent care if closed, 911 if worse |
+
+* **Staff check every flag.** An AI FLAG badge marks it in the queue, with the patient's own words the AI was worried
+  about. Patients at home can leave an optional call-back number.
+* **The rules keep learning.** Every AI flag goes to a "Possible missed rules" list. Staff mark each one Real miss or
+  False alarm, and real misses become new safety tests and rules, so the next patient is caught without the AI.
+* **Measured before launch.** Score keyword rules alone against rules plus the AI on wording the rules were never
+  tuned on, including the AI's false alarms on routine messages.
+
+A full version was built and tested (11 tests, checked in Chrome) in commit `1f23a3b`, then taken out in the commit
+after it. Reverting that removal brings it back.
