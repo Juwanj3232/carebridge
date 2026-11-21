@@ -1,4 +1,6 @@
-# CareBridge runs on the Python standard library alone (python3 server.py).
-# Both packages below are OPTIONAL: install them only to turn on Claude for the agenda, summaries and Q&A.
+# CareBridge runs on the Python standard library alone (python3 server.py). Every package below is optional.
+# rapidfuzz: fast spelling tolerance in the safety screen (a built-in fallback gives identical results, slower).
+rapidfuzz==3.14.3
+# anthropic + python-dotenv: turn on Claude for the agenda, summaries and Q&A.
 anthropic==1.15.0
 python-dotenv==1.2.4

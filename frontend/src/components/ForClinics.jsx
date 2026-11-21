@@ -12,6 +12,29 @@ const COMPARISON = [
   ['English & Spanish, phone or clinic kiosk', true, 'Varies'],
 ];
 
+const AI_SAFETY = [
+  'Plain-code red-flag rules run before any AI and can block it',
+  'Misspellings like "chest pian" still trigger them: tested on 229 phrasings, every emergency caught, 0 false alarms',
+  'After-visit summaries come only from the doctor\'s notes',
+  'Doctor reviews and presses "Approve and send" before the patient sees anything',
+  'Patient questions are answered only from the approved summary; everything else goes to staff',
+  'Follow-up texts are safety-checked the same way; anything worrying goes to the staff inbox',
+  'Every summary ends with "Questions? Contact your clinic."',
+];
+const PRIVACY = [
+  'Demo: synthetic "Test Patient" data only, nothing saved to disk',
+  'Demo: staff sign-in; only doctors can approve summaries',
+  'Product: HIPAA-compliant hosting, encrypted in transit and at rest',
+  'Product: role-based staff access with audit logs',
+  'Product: a signed business associate agreement (BAA) with each clinic',
+];
+const EHR = [
+  'Demo: "Export to EHR" gives a clean note plus a FHIR R4 bundle',
+  'FHIR is the standard many EHRs use to share data',
+  "We'd integrate with the 1–2 EHRs most common among small clinics first",
+  'Later: connect to AI scribe tools clinics already use for visit notes',
+];
+
 export default function ForClinics() {
   return (
     <section className="space-y-6 animate-fade-up">
@@ -47,27 +70,17 @@ export default function ForClinics() {
         <p className="text-[11px] text-slate-500 mt-2">"Typical" is our general read of the category, not a claim about any one product. Check each competitor before quoting it.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Plan icon={ShieldCheck} title="Patient privacy (HIPAA)" items={[
-          'Demo: synthetic "Test Patient" data only, nothing saved to disk',
-          'Demo: staff sign-in; only doctors can approve summaries',
-          'Product: HIPAA-compliant hosting, encrypted in transit and at rest',
-          'Product: role-based staff access with audit logs',
-          'Product: a signed business associate agreement (BAA) with each clinic',
-        ]} />
-        <Plan icon={Database} title="Clinic records (EHR)" items={[
-          'Demo: "Export to EHR" gives a clean note plus a FHIR R4 bundle',
-          'FHIR is the standard many EHRs use to share data',
-          "We'd integrate with the 1–2 EHRs most common among small clinics first",
-          'Later: connect to AI scribe tools clinics already use for visit notes',
-        ]} />
-        <Plan icon={Sparkles} title="How the AI stays safe" items={[
-          'Plain-code red-flag rules run before any AI and can block it',
-          'After-visit summaries come only from the doctor\'s notes',
-          'Doctor reviews and presses "Approve and send" before the patient sees anything',
-          'Patient questions are answered only from the approved summary; everything else goes to staff',
-          'Every summary ends with "Questions? Contact your clinic."',
-        ]} />
+      <div className="card p-5 sm:p-6">
+        <h3 className="text-lg font-bold flex items-center gap-2"><Sparkles className="w-5 h-5 text-teal-700" /> How the AI stays safe</h3>
+        <ul className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm text-slate-700">
+          {AI_SAFETY.map((x) => <li key={x} className="flex gap-2"><Lock className="w-3.5 h-3.5 text-teal-700 shrink-0 mt-0.5" /> {x}</li>)}
+        </ul>
+      </div>
+
+      {/* Privacy and EHR plans sit in a slim strip on the page's bottom border. */}
+      <div className="border-t border-slate-200 pt-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+        <FinePrint icon={ShieldCheck} title="Patient privacy (HIPAA)" items={PRIVACY} />
+        <FinePrint icon={Database} title="Clinic records (EHR)" items={EHR} />
       </div>
     </section>
   );
@@ -79,12 +92,12 @@ function Mark({ v }) {
   return <span className="text-xs text-slate-500">{v}</span>;
 }
 
-function Plan({ icon: Icon, title, items }) {
+function FinePrint({ icon: Icon, title, items }) {
   return (
-    <div className="card p-5">
-      <h3 className="text-base font-bold flex items-center gap-2"><Icon className="w-4 h-4 text-teal-700" /> {title}</h3>
-      <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
-        {items.map((x) => <li key={x} className="flex gap-1.5"><Lock className="w-3 h-3 text-slate-400 shrink-0 mt-1" /> {x}</li>)}
+    <div>
+      <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon className="w-3.5 h-3.5" /> {title}</h4>
+      <ul className="mt-1.5 space-y-1 text-xs text-slate-500">
+        {items.map((x) => <li key={x}>{x}</li>)}
       </ul>
     </div>
   );

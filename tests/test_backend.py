@@ -13,6 +13,7 @@ from unittest import mock
 os.environ["CAREBRIDGE_DISABLE_AI"] = "1"          # tests never call the API
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
 
 from backend import ai, auth, billing, fhir_export, followup, qa, safety, savings, store, summary   # noqa: E402
 from backend.scenarios import SCENARIOS                                                   # noqa: E402
@@ -53,6 +54,43 @@ class SafetyScreen(unittest.TestCase):
     def test_spanish_message(self):
         self.assertIn("recepción", safety.screen("dolor de pecho", language="es").patient_message["title"])
 
+
+
+class SafetyBenchmark(unittest.TestCase):
+    """The measured phrasings (tests/safety_cases.py). Full report: python3 scripts/safety_benchmark.py"""
+
+    def test_every_phrasing_gets_the_expected_tier(self):
+        from safety_cases import HELDOUT_1, HELDOUT_2, TUNING
+        want = {"emergency": "emergency", "review": "urgent_review", "routine": "routine"}
+        wrong = [(text, expected, safety.screen(text).level) for expected, _, text in TUNING + HELDOUT_1 + HELDOUT_2
+                 if safety.screen(text).level != want[expected]]
+        self.assertEqual(wrong, [])
+
+    def test_typo_is_quoted_for_staff(self):
+        r = safety.screen("I have chest pian")
+        self.assertEqual(r.level, "emergency")
+        self.assertIn('"chest pian, read as chest pain"', r.staff_message)
+        self.assertTrue(r.matches[0]["spelling_corrected"])
+
+    def test_real_words_near_red_flags_stay_routine(self):
+        for text in ["I was cooking dinner", "grasping the handrail", "the steak was overdone", "I painted the porch"]:
+            self.assertEqual(safety.screen(text).level, "routine", text)
+
+    def test_fallback_distance_matches_rapidfuzz(self):
+        if safety._DL is None:
+            self.skipTest("rapidfuzz not installed")
+        words = sorted(safety._VOCAB)
+        typos = ["pian", "chets", "breth", "siezure", "sucidal", "unconcious", "hart", "cooking", "anaphalaxis", "ca", "abc"]
+        for a in typos + words[::5]:
+            for b in words + ["abc", "ca"]:
+                self.assertEqual(safety._osa_distance(a, b), safety._DL.distance(a, b), (a, b))
+
+    def test_screen_is_fast(self):
+        import time
+        start = time.perf_counter()
+        for _ in range(200):
+            safety.screen("my chest is hurtin and i cant breth, also my ankle")
+        self.assertLess((time.perf_counter() - start) / 200 * 1000, 5)   # ms per message, loose bound for slow CI
 
 class Billing(unittest.TestCase):
     def test_matches_prototype_ppo_generic(self):

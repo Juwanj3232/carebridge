@@ -1,0 +1,14 @@
+# Render blueprint: one web service runs the whole app (API + React UI) from the Dockerfile.
+# Render dashboard -> New -> Blueprint -> pick this repo -> Apply. Then paste ANTHROPIC_API_KEY when asked.
+services:
+  - type: web
+    name: carebridge
+    runtime: docker
+    plan: free             # free instances sleep after 15 idle minutes: open the link a few minutes before judging
+    healthCheckPath: /api/health
+    autoDeploy: true       # every push to main redeploys
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false        # paste the key in the Render dashboard; never commit it. Leave empty for rules-only mode.
+      - key: CAREBRIDGE_SECRET
+        generateValue: true   # keeps staff sign-ins valid across restarts

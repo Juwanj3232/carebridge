@@ -31,7 +31,9 @@ Status key: **Built** (in the app and tested) · **In app, team to confirm** (bu
 
 ## 6. Urgent symptoms on the check-in form: Built
 - `backend/safety.py` is plain code that runs **before** any AI. Red-flag list covers chest pain, trouble breathing, suicidal thoughts, severe bleeding, stroke signs, fainting/seizure, severe allergic reaction, in English and Spanish.
-- On a hit, the patient sees **"Tell the front desk right away / call 911"** (plus 988 for self-harm), staff get a **red** alert at the top of the dashboard, and the AI is never called.
+- On a hit, the patient sees **"Tell the front desk right away / call 911"** (plus 988 for self-harm), the patient is marked **RED FLAG** at the top of the staff queue, and the AI is never called.
+- **Misspellings and slang are caught without AI.** "chest pian", "cant breth", "kms", "me duele el pecho" all reach the 911 screen. Spelling tolerance is plain code (rapidfuzz), so "safety never depends on AI" still holds.
+- **Measured number:** on 229 test phrasings (misspellings, slang, Spanish, negations, routine messages), every emergency reached the 911 screen with 0 false alarms, at 0.07 ms per message. On wording we had never tuned against: 27 of 31 before fixes, up from 12 of 31. Say both numbers. Details: `docs/SAFETY_BENCHMARK.md`.
 - **Demo it:** load "Red flag: chest pain", press Check in, then open the Clinic Dashboard.
 - **Open question (vague wording like "my heart feels weird"):** we built a proposed answer for the team to accept or change. Vague but worrying phrases, a red flag the patient denies ("no chest pain"), or discomfort 9–10/10 all trigger an **amber nurse check**: the patient is asked to tell the front desk, and a nurse is asked to check within 10 minutes. Demo with the "heart feels weird" scenario.
 
