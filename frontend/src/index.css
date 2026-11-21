@@ -26,3 +26,25 @@ body { font-family: 'Inter', system-ui, -apple-system, sans-serif; @apply bg-neu
     dark:bg-neutral-950 dark:hover:bg-neutral-900 dark:text-neutral-200 dark:border-neutral-700; }
   .btn-danger { @apply btn bg-rose-600 hover:bg-rose-700 text-white; }
 }
+
+/* Light rays background (components/LightRays.jsx). Red on white in light mode; brighter red, screen-blended, on black. */
+:root { --light-rays-color: rgba(220, 38, 38, 0.22); --light-rays-blend: multiply; }
+html.dark { --light-rays-color: rgba(239, 68, 68, 0.3); --light-rays-blend: screen; }
+.light-ray {
+  position: absolute; top: -12%; left: var(--ray-left);
+  height: var(--light-rays-length); width: var(--ray-width);
+  transform-origin: top; border-radius: 9999px; opacity: 0;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--light-rays-color) 70%, transparent), transparent);
+  mix-blend-mode: var(--light-rays-blend); filter: blur(var(--light-rays-blur));
+  transform: translateX(-50%) rotate(var(--ray-rotate));
+  animation-name: lightRay; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+  will-change: opacity, transform;
+}
+@keyframes lightRay {
+  0%     { opacity: 0; transform: translateX(-50%) rotate(calc(var(--ray-rotate) - var(--ray-swing))); }
+  45.45% { opacity: var(--ray-intensity); transform: translateX(-50%) rotate(calc(var(--ray-rotate) + var(--ray-swing))); }
+  90.9%, 100% { opacity: 0; transform: translateX(-50%) rotate(calc(var(--ray-rotate) - var(--ray-swing))); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .light-ray { animation: none; opacity: calc(var(--ray-intensity) * 0.6); }
+}
