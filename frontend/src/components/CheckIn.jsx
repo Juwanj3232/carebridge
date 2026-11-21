@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, ClipboardEdit, Phone, RotateCcw, Siren, Sparkles, UserRound } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ClipboardEdit, Languages, Phone, RotateCcw, Siren, Sparkles, UserRound } from 'lucide-react';
 import { api } from '../lib/api.js';
-import { DURATIONS, t } from '../lib/i18n.js';
+import { DURATIONS, LANGUAGES, t } from '../lib/i18n.js';
 
-const EMPTY = { name: '', insurance: 'ppo', symptoms: '', duration: '4-7 days', severity: 5, meds: '', allergies: '', reading_level: 'simple' };
+const EMPTY = { name: '', insurance: 'ppo', symptoms: '', duration: '4-7 days', severity: 5, meds: '', allergies: '', reading_level: 'simple',
+  needs_interpreter: false, interpreter_language: '' };
 
 function severityTone(n) {
   if (n >= 8) return 'bg-rose-100 text-rose-800';
@@ -11,7 +12,7 @@ function severityTone(n) {
   return 'bg-emerald-100 text-emerald-800';
 }
 
-export default function CheckIn({ lang, plans, preset, kiosk, showToast, onCheckedIn, goClinic }) {
+export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast, onCheckedIn, goClinic }) {
   const s = t(lang);
   const [form, setForm] = useState(EMPTY);
   const [scenario, setScenario] = useState(null);
@@ -37,7 +38,8 @@ export default function CheckIn({ lang, plans, preset, kiosk, showToast, onCheck
     try {
       const r = await api('intake', {
         method: 'POST',
-        body: { ...form, language: lang, channel: kiosk ? 'kiosk' : 'phone', scenario },
+        body: { ...form, language: lang, channel: kiosk ? 'kiosk' : 'phone', scenario,
+          interpreter_language: form.needs_interpreter ? form.interpreter_language : '' },
       });
       setResult(r);
       onCheckedIn(r.visit_id);
@@ -73,6 +75,26 @@ export default function CheckIn({ lang, plans, preset, kiosk, showToast, onCheck
               {plans.map((p) => <option key={p.id} value={p.id}>{p.label} ({p.short})</option>)}
             </select>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+          <label htmlFor="pref-lang" className="label flex items-center gap-1.5"><Languages className="w-3.5 h-3.5 text-teal-700" /> {s.prefLang}</label>
+          <select id="pref-lang" className="field" value={form.needs_interpreter ? 'other' : lang}
+            onChange={(e) => {
+              if (e.target.value === 'other') setForm({ ...form, needs_interpreter: true });
+              else { setForm({ ...form, needs_interpreter: false, interpreter_language: '' }); setLang(e.target.value); }
+            }}>
+            {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+            <option value="other">{s.prefLangOther}</option>
+          </select>
+          {form.needs_interpreter && (
+            <div>
+              <label htmlFor="interpreter" className="label">{s.prefLangWhich}</label>
+              <input id="interpreter" className="field" maxLength={40} required value={form.interpreter_language}
+                onChange={set('interpreter_language')} placeholder={s.prefLangWhichPh} />
+            </div>
+          )}
+          <p className="text-[11px] text-slate-500">{form.needs_interpreter ? s.prefLangOtherHelp : s.prefLangHelp}</p>
         </div>
 
         <div>

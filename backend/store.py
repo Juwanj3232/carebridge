@@ -70,6 +70,7 @@ def queue() -> list[dict]:
         "open_questions": sum(q["escalated"] and q["status"] == "open" for q in v["questions"]),
         "open_followups": sum(f["status"] == "open" for f in v["followup_flags"]),
         "language": v["intake"]["language"], "channel": v["intake"]["channel"],
+        "interpreter_language": v["intake"].get("interpreter_language", ""),
     } for v in sorted(visits, key=key)]
 
 

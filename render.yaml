@@ -10,5 +10,7 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false        # paste the key in the Render dashboard; never commit it. Leave empty for rules-only mode.
+      - key: CAREBRIDGE_AI_DAILY_LIMIT
+        value: "300"          # hard cap on Claude calls per UTC day (about 75 full visits); then rules mode until midnight
       - key: CAREBRIDGE_SECRET
         generateValue: true   # keeps staff sign-ins valid across restarts

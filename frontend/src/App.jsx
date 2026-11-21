@@ -7,6 +7,7 @@ import ClinicDashboard from './components/ClinicDashboard.jsx';
 import AfterVisit from './components/AfterVisit.jsx';
 import ForClinics from './components/ForClinics.jsx';
 import { api, session } from './lib/api.js';
+import { t } from './lib/i18n.js';
 
 // One app, four views, following the visit: check-in (patient) -> clinic dashboard (staff) -> after-visit (patient),
 // plus "For Clinics" (comparison, EHR and privacy plans) for the pitch.
@@ -54,7 +55,8 @@ export default function App() {
   const loadScenario = (s) => {
     setPreset({ intake: s.intake, scenario: s.id, nonce: Date.now() });
     go('checkin');
-    showToast(`Loaded "${s.label}" (synthetic test patient)`);
+    const text = t(lang);
+    showToast(text.loaded(text.scenarios[s.id] || s.label));
   };
 
   return (
@@ -63,7 +65,7 @@ export default function App() {
         kiosk={kiosk} setKiosk={setKiosk} staff={staff} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {!kiosk && <DemoBar scenarios={scenarios} onLoad={loadScenario} health={health} />}
+        {!kiosk && <DemoBar scenarios={scenarios} onLoad={loadScenario} health={health} lang={lang} />}
 
         {apiError && (
           <div className="card p-5 border-rose-200 bg-rose-50 text-rose-900 text-sm">
@@ -73,7 +75,7 @@ export default function App() {
         )}
 
         {tab === 'checkin' && (
-          <CheckIn lang={lang} plans={plans} preset={preset} kiosk={kiosk} showToast={showToast}
+          <CheckIn lang={lang} setLang={setLang} plans={plans} preset={preset} kiosk={kiosk} showToast={showToast}
             onCheckedIn={(id) => { setActiveVisitId(id); setPatientVisitId(id); }} goClinic={() => go('clinic')} />
         )}
         {tab === 'clinic' && (
@@ -81,13 +83,13 @@ export default function App() {
             setActiveVisitId={setActiveVisitId} scenarios={scenarios} showToast={showToast} goAfter={() => { setPatientVisitId(activeVisitId); go('after'); }} />
         )}
         {tab === 'after' && <AfterVisit lang={lang} visitId={patientVisitId} showToast={showToast} />}
-        {tab === 'clinics' && <ForClinics />}
+        {tab === 'clinics' && <ForClinics lang={lang} />}
       </main>
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-xs text-slate-500 flex flex-wrap gap-x-6 gap-y-1 justify-between">
-          <span>CareBridge pre-visit check-in · Family medicine · Synthetic demo data only, never enter real patient information.</span>
-          <span>If this is an emergency, call 911.</span>
+          <span>{t(lang).footer}</span>
+          <span>{t(lang).footer911}</span>
         </div>
       </footer>
 

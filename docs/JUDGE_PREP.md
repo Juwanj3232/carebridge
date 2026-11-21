@@ -33,7 +33,7 @@ Status key: **Built** (in the app and tested) · **In app, team to confirm** (bu
 - `backend/safety.py` is plain code that runs **before** any AI. Red-flag list covers chest pain, trouble breathing, suicidal thoughts, severe bleeding, stroke signs, fainting/seizure, severe allergic reaction, in English and Spanish.
 - On a hit, the patient sees **"Tell the front desk right away / call 911"** (plus 988 for self-harm), the patient is marked **RED FLAG** at the top of the staff queue, and the AI is never called.
 - **Misspellings and slang are caught without AI.** "chest pian", "cant breth", "kms", "me duele el pecho" all reach the 911 screen. Spelling tolerance is plain code (rapidfuzz), so "safety never depends on AI" still holds.
-- **Measured number:** on 229 test phrasings (misspellings, slang, Spanish, negations, routine messages), every emergency reached the 911 screen with 0 false alarms, at 0.07 ms per message. On wording we had never tuned against: 27 of 31 before fixes, up from 12 of 31. Say both numbers. Details: `docs/SAFETY_BENCHMARK.md`.
+- **Measured number:** on 272 test phrasings (misspellings, slang, Spanish, French, negations, routine messages), every emergency reached the 911 screen with 0 false alarms, at 0.1 ms per message. On wording we had never tuned against: 27 of 31 before fixes, up from 12 of 31. Say both numbers. Details: `docs/SAFETY_BENCHMARK.md`.
 - **Demo it:** load "Red flag: chest pain", press Check in, then open the Clinic Dashboard.
 - **Open question (vague wording like "my heart feels weird"):** we built a proposed answer for the team to accept or change. Vague but worrying phrases, a red flag the patient denies ("no chest pain"), or discomfort 9–10/10 all trigger an **amber nurse check**: the patient is asked to tell the front desk, and a nurse is asked to check within 10 minutes. Demo with the "heart feels weird" scenario.
 
@@ -51,7 +51,7 @@ Status key: **Built** (in the app and tested) · **In app, team to confirm** (bu
 
 ## 9. Not every patient uses smartphones: Built
 - **Kiosk** toggle: clinic-tablet mode with patient screens only, large text and a "Start over for the next patient" button.
-- **Large text** toggle and an **Español** toggle on every patient screen. Safety messages and the check-in prep work in Spanish without AI.
+- **Large text** toggle and a **language menu** (English, Español, Français) on every patient screen. Safety messages, the check-in prep and follow-up texts work in Spanish and French without AI. We only add a language once the safety screen can read it.
 - **Say:** "Front desk staff can always fill it out with the patient." (The form says this too.)
 
 ## 10. How will you find clinics? Team task

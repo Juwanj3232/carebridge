@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+from datetime import datetime, timezone
 
 MODEL = os.environ.get("CAREBRIDGE_MODEL", "claude-opus-5-5")
 
@@ -21,6 +23,31 @@ except ImportError:   # pragma: no cover - depends on the environment
 
 _client = None
 
+# Hard cap on Claude calls per UTC day, so a public demo link can't run up the bill. Past the cap every feature
+# falls back to the rules until midnight UTC. Set CAREBRIDGE_AI_DAILY_LIMIT=0 to turn Claude off entirely.
+DAILY_LIMIT = int(os.environ.get("CAREBRIDGE_AI_DAILY_LIMIT", "300"))
+_usage = {"day": "", "calls": 0}
+_usage_lock = threading.Lock()
+
+
+def _take_call() -> bool:
+    """Reserve one call under today's cap. False when the cap is reached."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    with _usage_lock:
+        if _usage["day"] != today:
+            _usage.update(day=today, calls=0)
+        if _usage["calls"] >= DAILY_LIMIT:
+            return False
+        _usage["calls"] += 1
+        return True
+
+
+def usage() -> dict:
+    today = datetime.now(timezone.utc).date().isoformat()
+    with _usage_lock:
+        calls = _usage["calls"] if _usage["day"] == today else 0
+    return {"calls_today": calls, "daily_limit": DAILY_LIMIT, "limit_reached": calls >= DAILY_LIMIT}
+
 
 def enabled() -> bool:
     if anthropic is None or os.environ.get("CAREBRIDGE_DISABLE_AI") == "1":
@@ -29,8 +56,14 @@ def enabled() -> bool:
 
 
 def status() -> dict:
-    return {"ai_enabled": enabled(), "model": MODEL if enabled() else None,
-            "mode": "Claude" if enabled() else "Rules only (no API key): every feature still works"}
+    u = usage()
+    if not enabled():
+        mode = "Rules only (no API key): every feature still works"
+    elif u["limit_reached"]:
+        mode = f"Rules only until midnight UTC: today's limit of {u['daily_limit']} Claude calls is used up"
+    else:
+        mode = "Claude"
+    return {"ai_enabled": enabled(), "model": MODEL if enabled() else None, "mode": mode, **u}
 
 
 def _get_client():
@@ -44,6 +77,8 @@ def ask_json(system: str, user: str, schema: dict, max_tokens: int = 4000) -> di
     """One structured-output call. Returns parsed JSON, or None on any failure (caller then uses rules)."""
     if not enabled():
         return None
+    if not _take_call():
+        return None              # daily cap reached: the caller uses its rules fallback
     try:
         response = _get_client().beta.messages.create(
             model=MODEL,

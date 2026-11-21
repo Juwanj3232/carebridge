@@ -1,7 +1,8 @@
 # Safety screen benchmark
 
 The red-flag screen (`backend/safety.py`) is plain code that runs before any AI. This page reports how well it
-does on 229 test phrasings, and how those numbers were produced, so nobody has to take them on trust.
+does on 272 test phrasings in English, Spanish and French, and how those numbers were produced, so nobody has to take
+them on trust.
 
 Re-run it any time:
 
@@ -11,7 +12,7 @@ python3 scripts/safety_benchmark.py --misses
 
 ## Results (Nov 21, 2026)
 
-On all 229 phrasings, before and after this round of work:
+On the 229 English and Spanish phrasings, before and after this round of work:
 
 | | Original screen | Current screen |
 |---|---|---|
@@ -27,11 +28,18 @@ The four misses were wording gaps ("he is not breathing", "the left side of my f
 "my chest is on fire", "I'm going to end it tonight"). They were added to the rules afterwards, so the 148 of 148
 above includes them.
 
+**French (added Nov 21, 2026): 43 phrasings.** The French tuning set (31) scores 21 of 21 emergencies, 5 of 5 nurse
+checks and 0 false alarms. The French held-out set (12) was scored once: 7 of 8 emergencies, 2 of 2 nurse checks,
+0 false alarms. Its miss ("ma poitrine me fait très mal") was fixed afterwards.
+
+**All 272 phrasings today:** 177 of 177 emergencies sent to the 911 screen, 40 of 40 nurse checks, 0 false alarms on
+55 routine messages, at 0.1 ms per message.
+
 A one-line version for a slide:
 
-> Measured on 229 test phrasings including misspellings, slang and Spanish: every emergency sent to the 911 screen,
-> 0 false alarms, 0.07 ms per message. On phrasings we had never tuned against, 27 of 31 emergencies were caught
-> before any fixes, up from 12 of 31.
+> Measured on 272 test phrasings in English, Spanish and French, including misspellings and slang: every emergency sent
+> to the 911 screen, 0 false alarms, 0.1 ms per message. On phrasings we had never tuned against, 27 of 31 English and
+> Spanish emergencies were caught before any fixes, up from 12 of 31.
 
 ## What is in the test set
 
@@ -43,6 +51,7 @@ Every phrasing is in `tests/safety_cases.py`, written by the team. None are real
 | Misspellings | "chest pian", "cant breth", "siezure", "hart attack", "chestpain" |
 | Slang | "my chest is killing me", "kms", "I can't get any air", "he isn't waking up" |
 | Spanish | "me duele el pecho", "me falta el aire", "dolor en el pecjo" |
+| French | "j'ai mal à la poitrine", "je n'arrive pas à respirer", "j'ai envie d'en finir", "douleur a la poitrinne" |
 | Negations | "no chest pain", "I don't have chest pain", "denies shortness of breath" |
 | Vague worries | "my heart feels weird", "the room is spinning" |
 | Routine | "sore throat for 3 days", "I need a refill", "heartburn after spicy food" |

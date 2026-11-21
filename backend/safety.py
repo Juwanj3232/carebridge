@@ -12,7 +12,7 @@ Three outcomes:
   routine        Nothing matched. Normal check-in.
 
 The lists are deliberately over-inclusive: a false alarm costs a nurse one minute, a miss can cost a life.
-They cover English and Spanish because the check-in form offers both.
+They cover English, Spanish and French because the check-in form offers all three (backend/languages.py).
 
 Spelling tolerance ("chest pian", "cant breth", "siezure"): before giving up, the screen corrects words that are one
 or two typos away from a red-flag word (rapidfuzz optimal-string-alignment distance, swaps count as one typo; same first letter; a correction only counts if
@@ -44,6 +44,9 @@ RED_FLAGS: list[tuple[str, str, list[str]]] = [
         r"pain (going|spreading|moving|radiating) (down|to|into) (my )?(left )?(arm|jaw)",
         r"chest (is )?killing me", r"(elephant|something heavy|a weight) (sitting |is sitting )?on (my )?chest",
         r"dolor (de|en el) pecho", r"presion en el pecho", r"ataque al corazon", r"me duele (mucho )?el pecho",
+        r"douleur (thoracique|a la poitrine|dans la poitrine|au thorax)", r"(jai )?mal (a la|dans la) poitrine",
+        r"(oppression|pression|serrement|poids) (a la|dans la|sur la) poitrine", r"poitrine (me fait (tres |vraiment |si )?mal|serree|qui serre)",
+        r"crise cardiaque", r"infarctus",
     ]),
     ("breathing", "Trouble breathing", [
         r"(trouble|difficulty|hard|struggling|cant|cannot|can not|unable to) (to )?(breathe|breathing|breath)",
@@ -52,12 +55,16 @@ RED_FLAGS: list[tuple[str, str, list[str]]] = [
         r"lips (are |is )?(turning |going )?(blue|purple|gray|grey)",
         r"(cant|cannot|can not) (get|take) (any |enough )?(air|a breath)",
         r"no puedo respirar", r"dificultad para respirar", r"falta de aire", r"me falta el aire", r"me ahogo",
+        r"(peux|peut|arrive|narrive|parviens) (pas|plus) a respirer", r"(peux|peut) (pas|plus) respirer",
+        r"(difficulte|difficultes|du mal) a respirer", r"manque dair", r"metouffe", r"levres (bleues|violettes)",
     ]),
     ("self_harm", "Suicidal thoughts / self-harm", [
         r"suicid\w*", r"kill?(ing)? my ?self", r"end(ing)? my life", r"want(ing)? to die", r"better off dead",
         r"hurt(ing)? my ?self", r"self harm", r"overdos\w*", r"kms", r"unalive\w*", r"end(ing)? it (all|tonight|today|now)", r"going to end it",
         r"(dont|do not) want to (be alive|live|be here)", r"pills to (end it|die|end my life)",
         r"quiero morir", r"matarme", r"me quiero matar", r"quitarme la vida", r"hacerme dano",
+        r"me (tuer|suicider)", r"(envie de|veux) mourir", r"d?en finir", r"mettre fin a (mes jours|ma vie)", r"me faire du mal",
+        r"surdose",
     ]),
     ("bleeding", "Severe bleeding", [
         r"(severe|heavy|lots of|a lot of|uncontrolled|wont stop|will not stop|non stop) bleeding",
@@ -65,6 +72,8 @@ RED_FLAGS: list[tuple[str, str, list[str]]] = [
         r"bleeding .{0,30}(wont|will not|doesnt|does not|cant) stop",
         r"(coughing|vomiting|throwing|spitting) (up )?blood", r"blood in (my )?vomit",
         r"sangrado (fuerte|abundante|que no para)", r"sangr\w* .{0,25}no (para|se detiene)", r"vomitando sangre",
+        r"saign\w* (beaucoup|abondamment|sans arret)", r"saignement (abondant|important|qui ne sarrete pas)",
+        r"sarrete pas de saigner", r"(crache|vomis|vomit) du sang",
     ]),
     ("stroke", "Possible stroke signs", [
         r"face (is |went |looks |feels )?(drooping|droop\w*)", r"slur\w* speech", r"(having|is having|had) a stroke", r"(cant|cannot) (speak|talk|move my)",
@@ -72,16 +81,20 @@ RED_FLAGS: list[tuple[str, str, list[str]]] = [
         r"(one|left|right) side of (my |his |her )?(body|face) (is |went |feels )?(numb|weak|droop\w*)",
         r"worst headache", r"thunderclap headache",
         r"cara caida", r"no puedo hablar",
+        r"visage (est )?(affaisse|tombant|paralyse)\w*", r"(peux|arrive|narrive) (pas|plus) (a )?parler", r"parole (pateuse|confuse)",
+        r"(engourdi\w*|faiblesse|paralys\w*) (dun|du) (seul )?cote", r"\bavc\b",
     ]),
     ("collapse", "Fainting / seizure / unresponsive", [
         r"passed out", r"pass(ed|ing)? out", r"faint(ed|ing)", r"black(ed|ing) out", r"seizures?", r"convulsions?",
         r"unconscious", r"unresponsive", r"collapsed", r"(not|isnt|wont|wasnt) waking up",
         r"me desmaye", r"desmayo", r"convulsion(es)?",
+        r"evanoui\w*", r"perdu connaissance", r"crise (depilepsie|convulsive)", r"inconscient\w*", r"(se )?reveille pas",
     ]),
     ("allergic", "Severe allergic reaction", [
         r"throat (is )?(closing|swelling|swollen|tight)", r"throat (feels )?like (its|it is) (closing|swelling)", r"tongue (is )?(swelling|swollen)", r"anaphyla\w*",
         r"(face|lips) (are |is )?(swelling|swollen)",
         r"garganta (cerrada|hinchada)",
+        r"gorge (qui se ferme|se ferme|serree|gonflee|enflee)", r"(langue|levres|visage) (a )?(gonfle|enfle)\w*", r"choc anaphylactique",
     ]),
 ]
 
@@ -91,29 +104,30 @@ REVIEW_FLAGS: list[tuple[str, str, list[str]]] = [
         r"heart (feels|is|has been|keeps)? ?(weird|funny|strange|off|wrong|racing|pounding|fluttering|skipping|jumping)",
         r"(racing|pounding|fluttering|skipping) heart", r"palpitations?", r"heart (beat|beating) (fast|weird|funny|irregular)",
         r"corazon (esta )?(raro|acelerado|late rapido)", r"palpitaciones",
+        r"coeur (qui )?(bat (vite|fort|bizarrement)|semballe|bizarre)",
     ]),
     ("breathing_vague", "Vague breathing symptom", [
-        r"(hard|harder) to breathe", r"winded", r"out of breath", r"wheez\w*",
+        r"(hard|harder) to breathe", r"winded", r"out of breath", r"wheez\w*", r"essouffl\w*",
     ]),
     ("neuro_vague", "Dizziness / confusion", [
         r"(very|really|super|extremely) dizzy", r"room (is )?spinning", r"confus\w*", r"vision (is )?(blurry|blurred|changes?|went)",
-        r"mareado", r"confundido",
+        r"mareado", r"confundido", r"(tres|vraiment) etourdi\w*", r"la tete (me )?tourne", r"vision (floue|trouble)",
     ]),
     ("general_vague", "Patient says something feels very wrong", [
         r"something (is |feels )?(really |very )?wrong", r"(feel|feels|feeling) (really )?(off|terrible|awful)",
         r"(scared|afraid|worried) (that )?(i|its|it is) (am )?(dying|serious|bad)",
-        r"algo (anda|esta) mal",
+        r"algo (anda|esta) mal", r"quelque chose (ne va pas|va mal)", r"je me sens (tres |vraiment )?mal",
     ]),
     ("mental_health", "Mental health concern", [
         r"(hopeless|cant go on|no reason to live|depressed|panic attack)",
-        r"sin esperanza", r"deprimid\w*",
+        r"sin esperanza", r"deprimid\w*", r"desespere\w*", r"deprime\w*",
     ]),
     ("pregnancy", "Pregnancy symptom", [
-        r"pregnan\w* .*(bleeding|cramp|pain)", r"(bleeding|cramp\w*|pain) .*pregnan\w*", r"embarazada",
+        r"pregnan\w* .*(bleeding|cramp|pain)", r"(bleeding|cramp\w*|pain) .*pregnan\w*", r"embarazada", r"enceinte",
     ]),
 ]
 
-NEGATIONS = r"(no|not|denies|deny|without|never|dont|doesnt|didnt|havent|hasnt|isnt|arent|wasnt|sin|niega|nunca)"
+NEGATIONS = r"(no|not|denies|deny|without|never|dont|doesnt|didnt|havent|hasnt|isnt|arent|wasnt|sin|niega|nunca|pas|sans|aucun|aucune|jamais)"
 
 PATIENT_MESSAGES = {
     "emergency": {
@@ -129,6 +143,12 @@ PATIENT_MESSAGES = {
                     "Si no está en la clínica, o los síntomas son graves, llame al 911.",
             "crisis": "Si está pensando en hacerse daño, llame o envíe un mensaje al 988 o llame al 911.",
         },
+        "fr": {
+            "title": "Prévenez l'accueil immédiatement",
+            "body": "Ce que vous avez écrit peut être le signe d'une urgence. Prévenez l'accueil maintenant. "
+                    "Si vous n'êtes pas à la clinique, ou si les symptômes sont graves, appelez le 911.",
+            "crisis": "Si vous pensez à vous faire du mal, appelez ou envoyez un texto au 988, ou appelez le 911.",
+        },
     },
     "urgent_review": {
         "en": {
@@ -140,6 +160,11 @@ PATIENT_MESSAGES = {
             "title": "Una enfermera hablará con usted pronto",
             "body": "Gracias por avisarnos. Informe a la recepción que ya llegó para que una enfermera hable con usted pronto. "
                     "Si se siente peor mientras espera, avise al personal de inmediato o llame al 911.",
+        },
+        "fr": {
+            "title": "Une infirmière va vous voir rapidement",
+            "body": "Merci de nous l'avoir dit. Signalez votre arrivée à l'accueil pour qu'une infirmière puisse vous parler bientôt. "
+                    "Si vous vous sentez plus mal en attendant, prévenez le personnel immédiatement ou appelez le 911.",
         },
     },
 }
@@ -197,6 +222,7 @@ def _scan(norm: str, table) -> list[dict]:
 # with a suffix pattern (suicid\w*, faint(ed|ing), ...) so a typo of the whole word still lands on it.
 _EXTRA_WORDS = """shortness seizure suicide suicidal fainted fainting overdose overdosed anaphylaxis anaphylactic squeezing wheezing
     confused confusion pregnant pregnancy seizures convulsions convulsiones drooping breathing breathe breath
+    poitrine thoracique respirer evanoui evanouie inconscient inconsciente suicider saigne saignement
     unconscious unresponsive bleeding hurting myself chest pecho respirar""".split()
 _VOCAB = frozenset(w for _, _, pats in RED_FLAGS + REVIEW_FLAGS for p in pats for w in re.findall(r"[a-z]{3,}", p)) \
     | frozenset(_EXTRA_WORDS)
@@ -309,7 +335,7 @@ def _with_typos(table, exact: list[dict], variants) -> list[dict]:
 
 def screen(text: str, severity: int | None = None, language: str = "en") -> SafetyResult:
     """Screen free text from a patient. Never calls the AI; always returns a decision."""
-    lang = language if language in ("en", "es") else "en"
+    lang = language if language in PATIENT_MESSAGES["emergency"] else "en"
     norm = normalize(text)
     red = _scan(norm, RED_FLAGS)
     review = _scan(norm, REVIEW_FLAGS)

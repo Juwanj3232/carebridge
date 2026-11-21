@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { api, money, timeAgo } from '../lib/api.js';
 import ExportModal from './ExportModal.jsx';
+import { languageName } from '../lib/i18n.js';
 
 const LEVEL = {
   emergency: { label: 'RED FLAG', cls: 'bg-rose-600 text-white', row: 'border-rose-400 bg-rose-50' },
@@ -105,7 +106,8 @@ export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId,
               </div>
               <p className="text-xs text-slate-600 truncate mt-0.5">{v.chief_complaint}</p>
               <p className="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-x-2">
-                <span>{timeAgo(v.created_at)}</span><span>{v.channel}</span>{v.language === 'es' && <span>Español</span>}
+                <span>{timeAgo(v.created_at)}</span><span>{v.channel}</span>{v.language !== 'en' && <span>{languageName(v.language)}</span>}
+                {v.interpreter_language && <span className="text-amber-700 font-semibold">{v.interpreter_language} interpreter</span>}
                 <span>{v.status.replaceAll('_', ' ')}</span>
                 {v.open_questions > 0 && <span className="text-amber-700 font-semibold">{v.open_questions} question(s)</span>}
                 {v.open_followups > 0 && <span className="text-amber-700 font-semibold">{v.open_followups} follow-up reply(s)</span>}
@@ -242,7 +244,8 @@ function Brief({ visit, openExport }) {
           </div>
           <p className="text-xs text-slate-500 mt-1">
             {visit.intake.name} · {visit.intake.insurance.toUpperCase()} · checked in {timeAgo(visit.created_at)} via {visit.intake.channel}
-            {visit.intake.language === 'es' && ' · prefers Spanish'}
+            {visit.intake.language !== 'en' && ` · prefers ${languageName(visit.intake.language)}`}
+            {visit.intake.interpreter_language && <strong className="text-amber-800"> · needs a {visit.intake.interpreter_language} interpreter</strong>}
           </p>
         </div>
         <button type="button" onClick={openExport} className="btn-ghost !py-1.5 !text-xs"><FileOutput className="w-4 h-4" /> Export to EHR</button>

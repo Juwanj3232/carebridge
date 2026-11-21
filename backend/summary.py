@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import re
 
-from . import ai
+from . import ai, languages
 from .safety import normalize
 
-FOOTER = {"en": "Questions? Contact your clinic.", "es": "¿Preguntas? Comuníquese con su clínica."}
+FOOTER = {"en": "Questions? Contact your clinic.", "es": "¿Preguntas? Comuníquese con su clínica.",
+          "fr": "Des questions ? Contactez votre clinique."}
 
 # Whole phrases first (reviewed, fixed translations), then single abbreviations.
 PHRASES = [
@@ -152,14 +153,16 @@ Write the "text" fields in {language}. Keep "source" fields exactly as in the in
 def draft(outcome: dict, language: str = "en") -> dict:
     """Build the draft the clinician reviews. Claude when available (grounding-checked), otherwise rules."""
     base = rules_draft(outcome)
-    lang = "es" if language == "es" else "en"
+    lang = languages.code(language)
     haystack = " ".join([outcome.get("notes", ""), outcome.get("diagnosis", ""), outcome.get("rx_generic", ""), outcome.get("rx_brand", "")])
     user = (f"DIAGNOSIS: {outcome.get('diagnosis', '')}\nPRESCRIPTION: {outcome.get('rx_generic') or outcome.get('rx_brand') or 'none'}\n"
             f"NOTES: {outcome.get('notes', '')}")
-    result = ai.ask_json(SUMMARY_SYSTEM.format(language="Spanish" if lang == "es" else "English"), user, SUMMARY_SCHEMA)
+    result = ai.ask_json(SUMMARY_SYSTEM.format(language=languages.english_name(lang)), user, SUMMARY_SCHEMA)
     if not result:
-        if lang == "es":
-            base["note_for_clinician"] = "Spanish summary needs the AI key; this draft is in English. Hand the patient the clinic's Spanish copy or ask staff to translate."
+        if lang != "en":
+            name = languages.english_name(lang)
+            base["note_for_clinician"] = (f"{name} summary needs the AI key; this draft is in English. "
+                                          f"Hand the patient the clinic's {name} copy or ask staff to translate.")
         return base
     hay = normalize(haystack)
 

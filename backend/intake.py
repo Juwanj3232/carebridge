@@ -11,38 +11,43 @@ from __future__ import annotations
 
 import re
 
-from . import ai
+from . import ai, languages
 from .safety import normalize
 
-# Family-medicine symptom tags: (id, english label, spanish label, keyword regexes on normalized text)
+# Family-medicine symptom tags: (id, English label, Spanish label, French label, keyword regexes on normalized text)
 SYMPTOM_TAGS = [
-    ("chest", "Chest pain / pressure", "Dolor o presión en el pecho", [r"\bchest\b", r"\bpecho\b"]),
-    ("breathing", "Breathing trouble", "Dificultad para respirar", [r"breath", r"respirar"]),
-    ("ear", "Ear pain / pressure", "Dolor o presión de oído", [r"\bears?\b", r"\boido", r"\boreja"]),
-    ("fever", "Fever", "Fiebre", [r"\bfever", r"\bfiebre", r"\btemp\w*\b", r"\b10[0-4](\s\d)?\b"]),
-    ("sinus", "Sinus congestion", "Congestión nasal", [r"congest", r"\bsinus", r"stuffy", r"\bnariz tapada", r"congestion"]),
-    ("throat", "Sore throat", "Dolor de garganta", [r"sore throat", r"throat (hurts|pain)", r"dolor de garganta"]),
-    ("cough", "Cough", "Tos", [r"\bcough", r"\btos\b"]),
-    ("headache", "Headache", "Dolor de cabeza", [r"headache", r"dolor de cabeza", r"migraine"]),
-    ("dizzy", "Dizziness / lightheadedness", "Mareo", [r"dizz", r"lightheaded", r"light headed", r"mareo", r"mareado"]),
-    ("bp", "Blood pressure / missed medication", "Presión arterial / medicina", [r"blood pressure", r"\bbp\b", r"presion"]),
-    ("refill", "Needs a refill", "Necesita resurtir receta", [r"ran out", r"out of refills", r"\brefill", r"missed (my )?(pills|meds|dose)", r"se me acabo"]),
-    ("injury", "Sprain / joint injury", "Torcedura / lesión", [r"\bankle", r"\bknee", r"\bwrist", r"sprain", r"rolled", r"twisted", r"tobillo", r"torci"]),
-    ("swelling", "Swelling", "Hinchazón", [r"swollen", r"swelling", r"hinchad"]),
-    ("back", "Back pain", "Dolor de espalda", [r"back pain", r"my back", r"dolor de espalda"]),
-    ("rash", "Rash / skin", "Sarpullido / piel", [r"\brash", r"itch", r"hives", r"sarpullido", r"ronchas"]),
-    ("urinary", "Urinary symptoms", "Síntomas urinarios", [r"burn\w* when (i )?(pee|urinate)", r"peeing a lot", r"\buti\b", r"ardor al orinar"]),
-    ("stomach", "Stomach / digestion", "Estómago / digestión", [r"stomach", r"nause", r"vomit", r"diarrhea", r"estomago", r"nausea", r"sick to my stomach"]),
-    ("fatigue", "Tiredness / low energy", "Cansancio", [r"\btired", r"fatigue", r"exhausted", r"no energy", r"cansad"]),
-    ("heart", "Heartbeat feels off", "Latidos irregulares", [r"\bheart\b", r"palpitation", r"corazon"]),
-    ("sugar", "Blood sugar / diabetes", "Azúcar / diabetes", [r"blood sugar", r"diabet", r"glucose", r"azucar"]),
-    ("mood", "Mood / sleep / stress", "Ánimo / sueño / estrés", [r"anxi", r"stress", r"insomnia", r"cant sleep", r"depress", r"ansiedad"]),
+    ("chest", "Chest pain / pressure", "Dolor o presión en el pecho", "Douleur ou pression thoracique", [r"\bchest\b", r"\bpecho\b", r"\bpoitrine\b", r"thorac"]),
+    ("breathing", "Breathing trouble", "Dificultad para respirar", "Difficulté à respirer", [r"breath", r"respirar", r"respirer", r"souffle"]),
+    ("ear", "Ear pain / pressure", "Dolor o presión de oído", "Douleur ou pression à l'oreille", [r"\bears?\b", r"\boido", r"\boreja", r"\bl?oreille"]),
+    ("fever", "Fever", "Fiebre", "Fièvre", [r"\bfever", r"\bfiebre", r"\btemp\w*\b", r"\b10[0-4](\s\d)?\b", r"\bfievre"]),
+    ("sinus", "Sinus congestion", "Congestión nasal", "Congestion nasale", [r"congest", r"\bsinus", r"stuffy", r"\bnariz tapada", r"congestion", r"nez bouche", r"congestion"]),
+    ("throat", "Sore throat", "Dolor de garganta", "Mal de gorge", [r"sore throat", r"throat (hurts|pain)", r"dolor de garganta", r"mal a la gorge", r"gorge"]),
+    ("cough", "Cough", "Tos", "Toux", [r"\bcough", r"\btos\b", r"\btoux\b", r"je tousse"]),
+    ("headache", "Headache", "Dolor de cabeza", "Mal de tête", [r"headache", r"dolor de cabeza", r"migraine", r"mal (a la|de) tete", r"migraine"]),
+    ("dizzy", "Dizziness / lightheadedness", "Mareo", "Étourdissements", [r"dizz", r"lightheaded", r"light headed", r"mareo", r"mareado", r"vertige", r"etourdi"]),
+    ("bp", "Blood pressure / missed medication", "Presión arterial / medicina", "Tension artérielle / médicament", [r"blood pressure", r"\bbp\b", r"presion", r"tension"]),
+    ("refill", "Needs a refill", "Necesita resurtir receta", "Renouvellement d'ordonnance", [r"ran out", r"out of refills", r"\brefill", r"missed (my )?(pills|meds|dose)", r"se me acabo", r"plus de (medicament|comprimes)", r"renouvel"]),
+    ("injury", "Sprain / joint injury", "Torcedura / lesión", "Entorse / blessure", [r"\bankle", r"\bknee", r"\bwrist", r"sprain", r"rolled", r"twisted", r"tobillo", r"torci", r"cheville", r"genou", r"poignet", r"entorse"]),
+    ("swelling", "Swelling", "Hinchazón", "Enflure", [r"swollen", r"swelling", r"hinchad", r"enfle", r"gonfle"]),
+    ("back", "Back pain", "Dolor de espalda", "Mal de dos", [r"back pain", r"my back", r"dolor de espalda", r"mal au dos", r"mal de dos"]),
+    ("rash", "Rash / skin", "Sarpullido / piel", "Éruption / peau", [r"\brash", r"itch", r"hives", r"sarpullido", r"ronchas", r"eruption", r"demange", r"boutons"]),
+    ("urinary", "Urinary symptoms", "Síntomas urinarios", "Symptômes urinaires", [r"burn\w* when (i )?(pee|urinate)", r"peeing a lot", r"\buti\b", r"ardor al orinar", r"brule en urinant", r"brulure en urinant"]),
+    ("stomach", "Stomach / digestion", "Estómago / digestión", "Estomac / digestion", [r"stomach", r"nause", r"vomit", r"diarrhea", r"estomago", r"nausea", r"sick to my stomach", r"ventre", r"estomac", r"nausee", r"vomi"]),
+    ("fatigue", "Tiredness / low energy", "Cansancio", "Fatigue", [r"\btired", r"fatigue", r"exhausted", r"no energy", r"cansad", r"fatigu", r"epuise"]),
+    ("heart", "Heartbeat feels off", "Latidos irregulares", "Battements irréguliers", [r"\bheart\b", r"palpitation", r"corazon", r"\bcoeur\b"]),
+    ("sugar", "Blood sugar / diabetes", "Azúcar / diabetes", "Glycémie / diabète", [r"blood sugar", r"diabet", r"glucose", r"azucar", r"glycemie", r"diabet"]),
+    ("mood", "Mood / sleep / stress", "Ánimo / sueño / estrés", "Humeur / sommeil / stress", [r"anxi", r"stress", r"insomnia", r"cant sleep", r"depress", r"ansiedad", r"anxi", r"deprim", r"dormir"]),
 ]
 
 DURATIONS = ["Today (under 24 hours)", "2-3 days", "4-7 days", "1-2 weeks", "More than 2 weeks"]
 DURATIONS_ES = {
     "Today (under 24 hours)": "hoy (menos de 24 horas)", "2-3 days": "hace 2-3 días", "4-7 days": "hace 4-7 días",
     "1-2 weeks": "hace 1-2 semanas", "More than 2 weeks": "hace más de 2 semanas",
+}
+
+DURATIONS_FR = {
+    "Today (under 24 hours)": "aujourd'hui (moins de 24 heures)", "2-3 days": "il y a 2-3 jours", "4-7 days": "il y a 4-7 jours",
+    "1-2 weeks": "il y a 1-2 semaines", "More than 2 weeks": "il y a plus de 2 semaines",
 }
 
 # Wording fix from judge item #12: "routine questions", never "unimportant questions".
@@ -53,18 +58,21 @@ ROUTINE_QUESTIONS = {
     "es": ["¿Necesito pruebas hoy y cuánto costarán con mi plan?",
            "Si necesito una receta, ¿hay una opción genérica más barata?",
            "¿Qué señales de alarma significan que debo llamar o regresar?"],
+    "fr": ["Ai-je besoin d'examens aujourd'hui, et combien coûteront-ils avec mon assurance ?",
+           "Si j'ai besoin d'une ordonnance, existe-t-il un générique moins cher ?",
+           "Quels signes d'alerte doivent me faire appeler ou revenir ?"],
 }
 
 
 def detect_tags(text: str) -> list[dict]:
     norm = normalize(text)
     found = []
-    for tag_id, en, es, pats in SYMPTOM_TAGS:
+    for tag_id, en, es, fr, pats in SYMPTOM_TAGS:
         starts = [m.start() for p in pats if (m := re.search(p, norm))]
         if starts:
-            found.append((min(starts), {"id": tag_id, "en": en, "es": es}))
+            found.append((min(starts), {"id": tag_id, "en": en, "es": es, "fr": fr}))
     tags = [t for _, t in sorted(found, key=lambda x: x[0])]   # in the order the patient mentioned them
-    return tags or [{"id": "general", "en": "General concern", "es": "Consulta general"}]
+    return tags or [{"id": "general", "en": "General concern", "es": "Consulta general", "fr": "Consultation générale"}]
 
 
 def _first_name(name: str) -> str:
@@ -87,6 +95,14 @@ def patient_prep(p: dict, tags: list[dict], lang: str) -> dict:
         points = [("Síntomas principales", ", ".join(labels)),
                   ("Tiempo y molestia", f"{dur} ({p['severity']}/10)"),
                   ("Medicinas", p["meds"] or "Ninguna"), ("Alergias", p["allergies"] or "Ninguna")]
+    elif lang == "fr":
+        dur = DURATIONS_FR.get(p["duration"], p["duration"])
+        summary = (f"Bonjour {first} : vous venez pour {joined}, qui a commencé {dur} (inconfort {p['severity']}/10). "
+                   f"Nous avons déjà transmis vos médicaments ({p['meds'] or 'aucun'}) et vos allergies ({p['allergies'] or 'aucune'}) "
+                   f"à la clinique, vous n'aurez donc pas à les répéter.")
+        points = [("Symptômes principaux", ", ".join(labels)),
+                  ("Durée et inconfort", f"{dur} ({p['severity']}/10)"),
+                  ("Médicaments", p["meds"] or "Aucun"), ("Allergies", p["allergies"] or "Aucune")]
     elif p.get("reading_level") == "standard":
         summary = (f"{p['name']} reports {joined} for {p['duration'].lower()} at {p['severity']}/10 discomfort. "
                    f"Medication list ({p['meds'] or 'none'}) and allergies ({p['allergies'] or 'none'}) are attached for the care team.")
@@ -174,6 +190,11 @@ def provider_brief(p: dict, tags: list[dict], safety: dict) -> dict:
                 agenda = safety_items + kept   # the plain-code safety item always stays on top
                 hpi = result["hpi"]
                 source = "claude"
+    if p.get("interpreter_language"):       # always kept, right after any safety item, whoever wrote the rest
+        at = sum(1 for a in agenda if a["priority"] == "urgent" or a["item"].startswith("Nurse check"))
+        article = "an" if p["interpreter_language"][:1].lower() in "aeiou" else "a"
+        agenda.insert(at, {"priority": "high", "item": f"Book {article} {p['interpreter_language']} interpreter before rooming "
+                                                       "(patient's preferred language)", "source": "Check-in form"})
     return {
         "chief_complaint": " + ".join(t["en"] for t in tags[:2]),
         "onset": f"{p['duration']} ({p['severity']}/10)",
@@ -207,6 +228,8 @@ def clean_intake(body: dict) -> dict:
         "meds": str(body.get("meds") or "").strip()[:300],
         "allergies": str(body.get("allergies") or "").strip()[:300],
         "reading_level": "standard" if body.get("reading_level") == "standard" else "simple",
-        "language": "es" if body.get("language") == "es" else "en",
+        "language": languages.code(body.get("language")),
+        # A language the app can't screen (Vietnamese, ASL, ...): the app stays in `language`, staff book an interpreter.
+        "interpreter_language": re.sub(r"[^\w\s()'-]", "", str(body.get("interpreter_language") or "")).strip()[:40],
         "channel": body.get("channel") if body.get("channel") in ("phone", "kiosk", "front_desk") else "phone",
     }

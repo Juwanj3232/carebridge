@@ -51,6 +51,18 @@ class SafetyScreen(unittest.TestCase):
         for s in ("ear", "bp", "ankle"):
             self.assertEqual(safety.screen(SCENARIOS[s]["intake"]["symptoms"], SCENARIOS[s]["intake"]["severity"]).level, "routine", s)
 
+    def test_french_messages_and_prep(self):
+        from backend import intake, languages
+        r = safety.screen("je n'arrive pas à respirer", language="fr")
+        self.assertEqual(r.level, "emergency")
+        self.assertIn("911", r.patient_message["body"])
+        self.assertEqual(safety.screen("pas de douleur thoracique", language="fr").level, "urgent_review")
+        p = intake.clean_intake({"name": "Test Patient Luc", "symptoms": "mal à l'oreille et fièvre", "language": "fr"})
+        self.assertEqual(p["language"], "fr")
+        prep = intake.patient_prep(p, intake.detect_tags(p["symptoms"]), "fr")
+        self.assertIn("oreille", prep["summary"])
+        self.assertEqual(languages.code("de"), "en")      # languages without safety rules are never accepted
+
     def test_spanish_message(self):
         self.assertIn("recepción", safety.screen("dolor de pecho", language="es").patient_message["title"])
 
@@ -60,9 +72,10 @@ class SafetyBenchmark(unittest.TestCase):
     """The measured phrasings (tests/safety_cases.py). Full report: python3 scripts/safety_benchmark.py"""
 
     def test_every_phrasing_gets_the_expected_tier(self):
-        from safety_cases import HELDOUT_1, HELDOUT_2, TUNING
+        from safety_cases import FRENCH, FRENCH_HELDOUT, HELDOUT_1, HELDOUT_2, TUNING
         want = {"emergency": "emergency", "review": "urgent_review", "routine": "routine"}
-        wrong = [(text, expected, safety.screen(text).level) for expected, _, text in TUNING + HELDOUT_1 + HELDOUT_2
+        every = TUNING + HELDOUT_1 + HELDOUT_2 + FRENCH + FRENCH_HELDOUT
+        wrong = [(text, expected, safety.screen(text).level) for expected, _, text in every
                  if safety.screen(text).level != want[expected]]
         self.assertEqual(wrong, [])
 
@@ -261,10 +274,51 @@ class FollowUpAgent(unittest.TestCase):
         self.assertEqual((last["from"], last["text"]), ("care_team", "Sent to your pharmacy."))
         self.assertNotIn("followup_flags", store.patient_view(v))
 
+    def test_french(self):
+        self.assertEqual(followup.checkin_question([{"id": "ear"}], "", "fr"), "Votre oreille va-t-elle mieux ?")
+        self.assertEqual(followup.checkin_question([{"id": "injury"}], "je me suis tordu la cheville", "fr"),
+                         "Votre cheville va-t-elle mieux ?")
+        self.assertIsNone(followup.handle_reply("Oui, beaucoup mieux", "awaiting_checkin", None, "fr")["flag"])
+        r = followup.handle_reply("J'ai mal à la poitrine", "awaiting_checkin", None, "fr")
+        self.assertEqual(r["flag"]["level"], "red")
+        self.assertIn("911", r["replies"][0])
+
     def test_spanish(self):
         self.assertEqual(followup.checkin_question([{"id": "ear"}], "", "es"), "¿Se siente mejor su oído?")
         self.assertIsNone(followup.handle_reply("Sí, mucho mejor", "awaiting_checkin", None, "es")["flag"])
 
+
+
+class AiDailyLimit(unittest.TestCase):
+    def test_calls_stop_at_the_daily_cap_and_fall_back_to_rules(self):
+        from types import SimpleNamespace
+        reply = SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text='{"ok": true}')])
+        fake = mock.Mock()
+        fake.beta.messages.create.return_value = reply
+        with mock.patch.object(ai, "enabled", return_value=True), mock.patch.object(ai, "_get_client", return_value=fake), \
+                mock.patch.object(ai, "DAILY_LIMIT", 2), mock.patch.dict(ai._usage, {"day": "", "calls": 0}):
+            self.assertEqual(ai.ask_json("s", "u", {}), {"ok": True})
+            self.assertEqual(ai.ask_json("s", "u", {}), {"ok": True})
+            self.assertIsNone(ai.ask_json("s", "u", {}))        # third call: over the cap, no API call made
+            self.assertEqual(fake.beta.messages.create.call_count, 2)
+            self.assertTrue(ai.usage()["limit_reached"])
+            self.assertIn("limit", ai.status()["mode"])
+
+
+class Interpreter(unittest.TestCase):
+    def test_interpreter_request_reaches_staff_and_export(self):
+        v = store.create_visit({**SCENARIOS["ear"]["intake"], "interpreter_language": "Vietnamese"})
+        self.assertEqual(v["intake"]["language"], "en")                 # the app stays in a language it can screen
+        self.assertEqual(v["brief"]["agenda"][0]["item"][:30], "Book a Vietnamese interpreter ")
+        row = next(q for q in store.queue() if q["id"] == v["id"])
+        self.assertEqual(row["interpreter_language"], "Vietnamese")
+        patient = next(e["resource"] for e in fhir_export.bundle(v)["entry"] if e["resource"]["resourceType"] == "Patient")
+        self.assertEqual(patient["communication"][0]["language"]["text"], "Vietnamese")
+
+    def test_red_flag_stays_above_interpreter(self):
+        v = store.create_visit({**SCENARIOS["chest"]["intake"], "interpreter_language": "ASL"})
+        self.assertEqual(v["brief"]["agenda"][0]["priority"], "urgent")
+        self.assertTrue(v["brief"]["agenda"][1]["item"].startswith("Book an ASL interpreter"))
 
 class Fhir(unittest.TestCase):
     def test_bundle(self):

@@ -13,7 +13,7 @@ import re
 import uuid
 from datetime import datetime, timezone
 
-from . import summary as summary_mod
+from . import summary as summary_mod, languages
 
 SYNTHETIC_TAG = {"system": "http://terminology.hl7.org/CodeSystem/v3-ActReason", "code": "HTEST", "display": "test health data"}
 
@@ -35,7 +35,7 @@ def bundle(visit: dict) -> dict:
     vid = v["id"]
     entries = []
     patient = _entry({"_key": vid, "resourceType": "Patient", "name": [{"text": p["name"]}],
-                      "communication": [{"language": {"text": "Spanish" if p["language"] == "es" else "English"}, "preferred": True}]})
+                      "communication": [{"language": {"text": p.get("interpreter_language") or languages.english_name(p["language"])}, "preferred": True}]})
     pref = {"reference": patient["fullUrl"], "display": p["name"]}
     entries.append(patient)
 

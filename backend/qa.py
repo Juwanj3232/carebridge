@@ -13,34 +13,40 @@ from __future__ import annotations
 
 import re
 
-from . import ai, safety
+from . import ai, languages, safety
 from .safety import normalize
 
 STOP = set("""a an the i im me my mine you your yours is are was were be been am do does did can could should would will
 to of in on at for with and or if it its this that these those what when where why how which who whom much many
 much any some there here have has had get got take taking please doctor clinic okay ok so just still also about
-el la los las de del y o que en un una mi me por para con es puedo debo cuando como""".split())
+el la los las de del y o que en un una mi me por para con es puedo debo cuando como
+le les des du et ou je mon ma mes est dois peux quand comment combien""".split())
 
 SYNONYMS = {
     "medicine": {"medicine", "medication", "meds", "pill", "pills", "antibiotic", "antibiotics", "dose", "prescription",
-                 "amoxicillin", "lisinopril", "naproxen", "tablet", "medicina", "pastilla", "receta"},
+                 "amoxicillin", "lisinopril", "naproxen", "tablet", "medicina", "pastilla", "receta",
+                 "medicament", "comprime", "ordonnance", "antibiotique"},
     "warning": {"call", "worse", "worried", "emergency", "return", "come", "back", "er", "911", "fever", "temperature",
-                "llamar", "peor", "emergencia"},
-    "times": {"times", "often", "frequency", "day", "daily", "twice", "three", "veces", "dia"},
-    "ice": {"ice", "cold", "swelling", "elevate", "elevation", "rest", "hielo"},
-    "heart": {"heart", "ecg", "rhythm", "caffeine", "monitor", "holter", "corazon"},
-    "pressure": {"pressure", "bp", "dizzy", "dizziness", "stand", "presion", "mareo"},
-    "duration": {"long", "days", "weeks", "until", "finish", "stop", "dias", "semanas"},
+                "llamar", "peor", "emergencia", "appeler", "pire", "urgence", "fievre"},
+    "times": {"times", "often", "frequency", "day", "daily", "twice", "three", "veces", "dia", "fois", "jour"},
+    "ice": {"ice", "cold", "swelling", "elevate", "elevation", "rest", "hielo", "glace", "repos"},
+    "heart": {"heart", "ecg", "rhythm", "caffeine", "monitor", "holter", "corazon", "coeur"},
+    "pressure": {"pressure", "bp", "dizzy", "dizziness", "stand", "presion", "mareo", "tension", "vertige"},
+    "duration": {"long", "days", "weeks", "until", "finish", "stop", "dias", "semanas", "jours", "semaines"},
 }
 
-ANSWER_PREFIX = {"en": "From your approved visit summary: ", "es": "Según el resumen aprobado de su visita: "}
+ANSWER_PREFIX = {"en": "From your approved visit summary: ", "es": "Según el resumen aprobado de su visita: ",
+                 "fr": "D'après le résumé approuvé de votre visite : "}
 ESCALATE = {
     "en": "I can only answer from your approved visit summary, and it doesn't cover that. I'll send this to your care team. "
           "They'll get back to you. If it's urgent, call the clinic.",
     "es": "Solo puedo responder con el resumen aprobado de su visita, y no incluye eso. Enviaré su pregunta a su equipo de atención. "
           "Le responderán pronto. Si es urgente, llame a la clínica.",
+    "fr": "Je ne peux répondre qu'à partir du résumé approuvé de votre visite, et il ne couvre pas cela. J'envoie votre question "
+          "à votre équipe soignante, qui vous répondra. Si c'est urgent, appelez la clinique.",
 }
-FOOTER = {"en": "Questions? Contact your clinic.", "es": "¿Preguntas? Comuníquese con su clínica."}
+FOOTER = {"en": "Questions? Contact your clinic.", "es": "¿Preguntas? Comuníquese con su clínica.",
+          "fr": "Des questions ? Contactez votre clinique."}
 
 # Questions that always need a clinician, even if a summary line shares words with them.
 ALWAYS_ESCALATE = re.compile(r"\b(alcohol|drink(ing)? (beer|wine)|pregnan|breast ?feed|interact|together with|mix|"
@@ -96,7 +102,7 @@ APPROVED SUMMARY:
 
 
 def answer(question: str, summary: dict, language: str = "en") -> dict:
-    lang = "es" if language == "es" else "en"
+    lang = languages.code(language)
     screen = safety.screen(question, language=lang)
     if screen.level == "emergency":
         msg = screen.patient_message
@@ -106,7 +112,7 @@ def answer(question: str, summary: dict, language: str = "en") -> dict:
     text = summary_text_for_ai(summary)
     result = None
     if screen.level == "routine" and not ALWAYS_ESCALATE.search(normalize(question)):
-        result = ai.ask_json(QA_SYSTEM.format(language="Spanish" if lang == "es" else "English", summary=text),
+        result = ai.ask_json(QA_SYSTEM.format(language=languages.english_name(lang), summary=text),
                              question, QA_SCHEMA, max_tokens=1500)
     if result is not None:
         grounded = result["answerable"] and normalize(result["quote"]) and normalize(result["quote"]) in normalize(text)

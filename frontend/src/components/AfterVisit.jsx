@@ -231,7 +231,7 @@ function FollowUp({ s, visit, reload, showToast }) {
       {!f.checkin_sent_at && (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
           <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-teal-700" />
-            {s.fuScheduled} {new Date(f.due_at).toLocaleDateString(visit.language === 'es' ? 'es' : 'en', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+            {s.fuScheduled} {new Date(f.due_at).toLocaleDateString(visit.language || 'en', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
           <button type="button" className="btn-ghost !py-1 !px-2.5 !text-xs" disabled={busy} onClick={() => post('followup/send-now', {})}>
             <FastForward className="w-3.5 h-3.5" /> {s.fuSendNow}
           </button>

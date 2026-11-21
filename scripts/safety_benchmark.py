@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
 from backend import safety  # noqa: E402
-from safety_cases import HELDOUT_1, HELDOUT_2, TUNING  # noqa: E402
+from safety_cases import FRENCH, FRENCH_HELDOUT, HELDOUT_1, HELDOUT_2, TUNING  # noqa: E402
 
 LEVEL = {"emergency": "emergency", "review": "urgent_review", "routine": "routine"}
 
@@ -91,9 +91,10 @@ def main() -> None:
     show = "--misses" in sys.argv
     status = safety.fuzzy_status() if hasattr(safety, "fuzzy_status") else "not installed"
     print(f"Safety screen benchmark (spelling tolerance: {status})")
-    sets = {"Tuning set": TUNING, "Held-out round 1 (now tuning data)": HELDOUT_1, "Held-out round 2": HELDOUT_2}
+    sets = {"Tuning set": TUNING, "Held-out round 1 (now tuning data)": HELDOUT_1, "Held-out round 2": HELDOUT_2,
+            "French (tuning)": FRENCH, "French held-out": FRENCH_HELDOUT}
     results = {name: report(name, cases) for name, cases in sets.items()}
-    every = TUNING + HELDOUT_1 + HELDOUT_2
+    every = TUNING + HELDOUT_1 + HELDOUT_2 + FRENCH + FRENCH_HELDOUT
     mean_ms, p99_ms = timing(every)
     print(f"\nScreen time per message: {mean_ms:.3f} ms average, {p99_ms:.3f} ms at the 99th percentile "
           f"({len(every)} phrasings x 200 runs)")

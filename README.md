@@ -19,8 +19,8 @@ python3 server.py            # open http://localhost:8100
 * **Optional Claude:** `pip install -r requirements.txt`, then put `ANTHROPIC_API_KEY=...` in `.env` in this folder.
   Without a key the app runs in rules mode and every feature still works. The red-flag safety screen never uses AI.
 * Frontend dev with hot reload: `cd frontend && npm run dev` (port 5174, proxies `/api` to 8100).
-* Tests: `python3 -m unittest discover -s tests -v` (38 tests, no network, no key).
-* Safety screen benchmark: `python3 scripts/safety_benchmark.py --misses` (229 test phrasings, see `docs/SAFETY_BENCHMARK.md`).
+* Tests: `python3 -m unittest discover -s tests -v` (43 tests, no network, no key).
+* Safety screen benchmark: `python3 scripts/safety_benchmark.py --misses` (272 test phrasings, see `docs/SAFETY_BENCHMARK.md`).
 
 ## Deploy (Render) and the live demo link
 
@@ -28,8 +28,13 @@ python3 server.py            # open http://localhost:8100
 
 1. Click the button, or in the Render dashboard choose **New > Blueprint** and pick this repo. `render.yaml` builds the
    `Dockerfile`: one web service serves the API and the React UI.
-2. When Render asks for `ANTHROPIC_API_KEY`, paste the key. Set a monthly spend limit on that key first: the demo link
-   is public, so anyone with it can trigger Claude calls. Leave it empty for rules-only mode.
+2. When Render asks for `ANTHROPIC_API_KEY`, paste the key. Leave it empty for rules-only mode. The demo link is public,
+   so limit what it can spend, in two layers:
+   * **In the app:** `CAREBRIDGE_AI_DAILY_LIMIT` (default 300 in `render.yaml`) caps Claude calls per UTC day. Past the cap
+     the app switches to rules mode until midnight UTC; the demo bar shows it.
+   * **In the Claude Console:** limits apply per workspace or organization, not per key. Create a workspace just for
+     this demo, set its monthly spend limit at platform.claude.com/settings/spend-limits and its requests-per-minute
+     limit at platform.claude.com/usage/limits, then create the key inside that workspace.
 3. Wait for the deploy, then copy the service URL (for example `https://carebridge.onrender.com`).
 4. Prove Claude runs live there: `python3 scripts/claude_live_check.py --url <service URL>`. Every row should say `CLAUDE`.
 5. Make the slide QR code: `.venv/bin/pip install segno==1.6.1`, then `.venv/bin/python scripts/make_qr.py <service URL>`.
@@ -42,6 +47,9 @@ To test the container locally: `docker build -t carebridge . && docker run --rm 
 ## The demo, in order
 
 1. **Pre-Visit Check-In (patient).** Load a scenario or type symptoms. Plain-code safety rules run first.
+   **Preferred language** on the form switches the whole app to English, Spanish or French. "Another language" records
+   it (for example Vietnamese or ASL), keeps the app in a language it can safety-screen, and puts "Book a Vietnamese
+   interpreter" near the top of the staff agenda, in the queue and in the EHR export.
    Red flags show "Tell the front desk right away / call 911" and are marked RED FLAG for staff. Vague worries ("my heart feels weird") get a nurse check.
 2. **Clinic Dashboard (staff, sign-in required).** Queue sorted by urgency with RED FLAG and Nurse check badges, 30-second brief with an AI priority agenda
    (every item quotes the patient), **Export to EHR** (clean note + FHIR R4 bundle). The clinician types visit notes, presses
@@ -54,17 +62,22 @@ To test the container locally: `docker build -t carebridge . && docker run --rm 
    On day 3 it asks about the main symptom ("Is your ear feeling better?") and whether the patient needs anything. Every reply goes through
    the same safety screen as check-in. Red flags get 911 instructions; "not better", requests and unclear replies land in the staff inbox.
    The demo button **Send the day-3 check-in now** skips the wait.
-4. **For Clinics.** Comparison table and **How the AI stays safe** across the full width, with the privacy (HIPAA) and
-   records (EHR) plans in a slim strip at the bottom. (Savings calculator and pricing are hidden for now; the logic stays in `backend/savings.py`.)
+4. **For Clinics.** Comparison table and **How the AI stays safe** across the full width. A strip on the bottom border lists the
+   privacy (HIPAA) and records (EHR) plans: each item has a plain-English promise, the precise version for compliance and IT
+   staff, and a dot showing whether it is live in the demo or planned for launch. (Savings calculator and pricing are hidden for now; the logic stays in `backend/savings.py`.)
 
-Header toggles: **Español**, **Large text**, **Kiosk** (clinic tablet: patient screens only, large text, "start over" button).
+Header controls: a **language menu** (English, Español, Français) for every patient screen, check-in prep, answers and follow-up texts;
+**Large text**; **Kiosk** (clinic tablet: patient screens only, large text, "start over" button).
+A language is only offered once the safety screen can read it: adding one means its text in `backend/languages.py` and the modules that use it,
+its red-flag rules in `backend/safety.py`, and test phrasings in `tests/safety_cases.py`.
 
 ## Files
 
 | Path | What it does |
 |---|---|
 | `server.py` | Standard-library HTTP server. Serves the API and the built frontend. |
-| `backend/safety.py` | Red-flag and vague-symptom rules, English + Spanish, with spelling tolerance (rapidfuzz, no AI). Runs before any AI and can block it. |
+| `backend/languages.py` | The patient languages (English, Spanish, French) and helpers. |
+| `backend/safety.py` | Red-flag and vague-symptom rules in English, Spanish and French, with spelling tolerance (rapidfuzz, no AI). Runs before any AI and can block it. |
 | `backend/fuzzy_guard.txt` | Real words never "corrected" into a one-word red flag ("cooking" vs "choking"). Built by `scripts/build_fuzzy_guard.py`. |
 | `backend/intake.py` | Turns patient words into the patient prep sheet and the provider brief / priority agenda. |
 | `backend/summary.py` | Doctor notes to patient summary. Shorthand dictionary in rules mode; Claude mode drops any line not quoted from the notes. |
@@ -78,7 +91,7 @@ Header toggles: **Español**, **Large text**, **Kiosk** (clinic tablet: patient 
 | `backend/ai.py` | Optional Claude call (`claude-opus-5-5`, structured JSON output, server-side refusal fallback). Returns None on any failure so rules take over. |
 | `backend/scenarios.py` | Synthetic "Test Patient" cases. |
 | `frontend/` | React + Vite + Tailwind UI. |
-| `tests/safety_cases.py` | The 229 safety test phrasings: misspellings, slang, Spanish, negations, routine messages, spelling traps. |
+| `tests/safety_cases.py` | The 272 safety test phrasings: misspellings, slang, Spanish, French, negations, routine messages, spelling traps. |
 | `scripts/safety_benchmark.py` | Scores the safety screen on those phrasings and times it. |
 | `scripts/claude_live_check.py` | Runs each Claude step once, locally or against the deployed site, and shows whether Claude answered. |
 | `scripts/make_qr.py` | QR code for the live demo link, for the slides. |
@@ -98,11 +111,12 @@ Staff (Bearer token): `GET /api/staff/queue`, `/api/staff/inbox`, `/api/staff/vi
 ## Limits (say these before a judge finds them)
 
 * Demo only: synthetic data, in-memory store that resets on restart, demo-grade login. Not for real patient information.
-* Safety rules are keyword lists with spelling tolerance. On 229 test phrasings every emergency reached the 911 screen with
+* Safety rules are keyword lists with spelling tolerance. On 272 test phrasings every emergency reached the 911 screen with
   0 false alarms, but on wording we had not tuned against, 27 of 31 were caught (`docs/SAFETY_BENCHMARK.md`). Unusual wording
   can still be missed, which is why vague wording and high discomfort go to a nurse and staff always see the raw patient text.
 * Rules-mode Q&A is cautious: it escalates when unsure (for example "How long do I take it?"), which is the safe failure.
-* Spanish after-visit summaries need Claude; in rules mode the draft is English and the clinician is told so.
+* Spanish and French after-visit summaries need Claude; in rules mode the draft is English and the clinician is told so.
+  The clinic dashboard (staff) stays in English; every other screen, including For Clinics, follows the language menu.
 * Follow-up texts appear in the app only. Real SMS needs a texting provider and patient consent to receive texts.
   The day-3 check-in is sent when the server next handles a request after it comes due, not by a background scheduler.
 * The FHIR export uses free text, not SNOMED/ICD/RxNorm codes, and is not sent anywhere.

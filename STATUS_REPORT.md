@@ -6,13 +6,19 @@ It is ready to deploy to Render with one click, and the safety screen now has a 
 Two steps still need the team's own accounts: the Render deploy itself, and the first live Claude call.
 
 ## Verified
-- 38 backend tests pass, with rapidfuzz installed and with the built-in fallback.
-- **Safety screen, measured on 229 test phrasings** (misspellings, slang, Spanish, negations, routine messages):
-  every one of 148 emergencies reached the 911 screen, all 33 nurse-check cases were flagged, and 0 of 48 routine
-  messages raised a false alarm. Average screen time is 0.07 ms per message. On a held-out set written before the last
+- 43 backend tests pass, with rapidfuzz installed and with the built-in fallback.
+- Check-in asks for a **preferred language**. Choosing another language (for example Vietnamese) books an interpreter:
+  it shows in the staff queue, near the top of the agenda and in the EHR export.
+- The app caps Claude calls per day (`CAREBRIDGE_AI_DAILY_LIMIT`, default 300) and falls back to rules mode past it.
+- **Safety screen, measured on 272 test phrasings** in English, Spanish and French (misspellings, slang, negations,
+  routine messages): every one of 177 emergencies reached the 911 screen, all 40 nurse-check cases were flagged, and
+  0 of 55 routine messages raised a false alarm. Average screen time is 0.1 ms per message. On a held-out set written before the last
   fixes, it caught 27 of 31 emergencies, up from 12 of 31 for the original screen. Method and caveats are in
   `docs/SAFETY_BENCHMARK.md`.
 - Misspellings are caught without AI: "chest pian" is read as "chest pain" and shown to staff that way.
+- **French** is a full patient language: screens, check-in prep, safety rules and messages, answers and follow-up texts.
+  The French held-out set scored 7 of 8 emergencies before its one miss was fixed. A headless-Chrome run confirmed
+  the language menu, the French screens and the For Clinics page at desktop and phone width, with no console errors.
 - The deploy image builds and runs locally exactly as Render will run it. It serves the UI and the API on Render's
   port, runs as a non-root user, and screens a misspelled red flag correctly.
 - The live-check script runs end to end against that container. With no key it correctly reports rules mode.
@@ -34,10 +40,10 @@ Two steps still need the team's own accounts: the Render deploy itself, and the 
 | 3 | Savings proof | Calculator hidden from the UI; logic kept for later |
 | 4 | EHR connection | Export to EHR built: clinical note and FHIR R4 bundle (mock) |
 | 5 | Privacy | Built for demo: test patients, staff login, doctor-only approval |
-| 6 | Urgent symptoms | Built and measured: plain-code red flags with spelling tolerance before any AI, 229-phrasing benchmark |
+| 6 | Urgent symptoms | Built and measured: plain-code red flags with spelling tolerance before any AI, 272-phrasing benchmark |
 | 7 | Summary source | Built: from doctor's notes, Approve and send |
 | 8 | Wrong explanations | Built: grounding check, Q&A escalation, required footer |
-| 9 | Non-smartphone users | Built: kiosk mode, large text, Spanish |
+| 9 | Non-smartphone users | Built: kiosk mode, large text, Spanish and French |
 | 10 | First customers | Plan line in app; receptionist interview still to do |
 | 11 | Pricing | Hidden from the UI until the team settles it |
 | 12 | Wording | Fixed in app; slides not in repo |
@@ -51,13 +57,14 @@ and a simpler dashboard, after-visit page and For Clinics page.
 2. **Render plan.** The free plan sleeps after 15 idle minutes, and the first visit then takes about a minute. The
    paid starter plan stays awake. Either way, open the link a few minutes before judging.
 3. **API key spend limit.** The demo link is public, so anyone with it can trigger Claude calls. Set a monthly limit
-   on the key before pasting it into Render.
+   on the key before pasting it into Render. Estimated cost: about 5 to 15 cents per complete visit on Claude Opus 5.5,
+   so a $10 to $20 limit covers a judging day. Claude Pro does not include API usage; API credits are billed separately.
 
 ## Known limits
 - The safety rules catch every phrasing in the test set, but new wording can still be missed. For example,
   "I feel like I'm dying, help" gets no flag today. The nurse-check tier and the raw patient text on the dashboard are
   the backstop. Every miss found in a demo should become a new test phrasing and then a rule.
-- Spanish after-visit summaries need Claude. Without it, the draft is English and the clinician sees a note saying so.
+- Spanish and French after-visit summaries need Claude. Without it, the draft is English and the clinician sees a note saying so.
 - Visits live in memory and reset when the server restarts or a free instance wakes up. Login is demo-grade, and the
   demo password is public in the README.
 - Follow-up texts appear in the app only; nothing is sent by SMS.
