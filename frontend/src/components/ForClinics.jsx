@@ -40,7 +40,7 @@ export default function ForClinics({ lang }) {
 
       <div className="card p-5 sm:p-6">
         <h3 className="text-lg font-bold flex items-center gap-2"><Sparkles className="w-5 h-5 text-red-700 dark:text-red-400" /> {c.safetyTitle}</h3>
-        <ul className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm text-neutral-700 dark:text-neutral-200">
+        <ul className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-3 text-sm text-neutral-700 dark:text-neutral-200">
           {c.safety.map((x) => <li key={x} className="flex gap-2"><Lock className="w-3.5 h-3.5 text-red-700 dark:text-red-400 shrink-0 mt-0.5" /> {x}</li>)}
         </ul>
       </div>
