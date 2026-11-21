@@ -2,22 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; color-scheme: light; }
+html.dark { color-scheme: dark; }               /* native selects, scrollbars and form controls follow the theme */
 html.text-large { font-size: 19px; }           /* "Large text" toggle and kiosk mode scale every rem-based size */
-body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+body { font-family: 'Inter', system-ui, -apple-system, sans-serif; @apply bg-neutral-50 text-neutral-900 dark:bg-black dark:text-neutral-100; }
 
 @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .animate-fade-up { animation: fadeUp 0.22s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .animate-fade-up, .animate-pulse { animation: none; } }
 
 @layer components {
-  .card { @apply bg-white rounded-2xl border border-slate-200 shadow-sm; }
-  .field { @apply w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600; }
-  .label { @apply block text-xs font-semibold text-slate-600 mb-1; }
+  .card { @apply bg-white rounded-2xl border border-neutral-200 shadow-sm dark:bg-neutral-950 dark:border-neutral-800 dark:shadow-none; }
+  .field { @apply w-full rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400
+    focus:outline-none focus:ring-2 focus:ring-red-600
+    dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:ring-red-500; }
+  .label { @apply block text-xs font-semibold text-neutral-600 mb-1 dark:text-neutral-400; }
   .eyebrow { @apply text-xs font-bold uppercase tracking-wider; }
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2; }
-  .btn-primary { @apply btn bg-teal-700 hover:bg-teal-800 text-white shadow-sm; }
-  .btn-dark { @apply btn bg-slate-900 hover:bg-slate-800 text-white; }
-  .btn-ghost { @apply btn bg-white hover:bg-slate-100 text-slate-700 border border-slate-200; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed
+    focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-2 dark:focus-visible:ring-red-500 dark:focus-visible:ring-offset-black; }
+  .btn-primary { @apply btn bg-red-700 hover:bg-red-800 text-white shadow-sm dark:bg-red-600 dark:hover:bg-red-700; }
+  .btn-dark { @apply btn bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-neutral-800 dark:hover:bg-neutral-700 dark:border dark:border-neutral-700; }
+  .btn-ghost { @apply btn bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-200
+    dark:bg-neutral-950 dark:hover:bg-neutral-900 dark:text-neutral-200 dark:border-neutral-700; }
   .btn-danger { @apply btn bg-rose-600 hover:bg-rose-700 text-white; }
 }

@@ -7,9 +7,9 @@ const EMPTY = { name: '', insurance: 'ppo', symptoms: '', duration: '4-7 days', 
   needs_interpreter: false, interpreter_language: '' };
 
 function severityTone(n) {
-  if (n >= 8) return 'bg-rose-100 text-rose-800';
-  if (n >= 5) return 'bg-amber-100 text-amber-800';
-  return 'bg-emerald-100 text-emerald-800';
+  if (n >= 8) return 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-200';
+  if (n >= 5) return 'bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-200';
+  return 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200';
 }
 
 export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast, onCheckedIn, goClinic }) {
@@ -56,12 +56,12 @@ export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast
   return (
     <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-up">
       <form onSubmit={submit} className="card p-5 sm:p-6 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
           <div>
             <h1 className="text-lg font-bold">{s.checkinTitle}</h1>
-            <p className="text-xs text-slate-500">{s.checkinSub}</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">{s.checkinSub}</p>
           </div>
-          <ClipboardEdit className="w-5 h-5 text-teal-600 shrink-0" />
+          <ClipboardEdit className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -77,8 +77,8 @@ export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
-          <label htmlFor="pref-lang" className="label flex items-center gap-1.5"><Languages className="w-3.5 h-3.5 text-teal-700" /> {s.prefLang}</label>
+        <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/60 p-3 space-y-2">
+          <label htmlFor="pref-lang" className="label flex items-center gap-1.5"><Languages className="w-3.5 h-3.5 text-red-700 dark:text-red-400" /> {s.prefLang}</label>
           <select id="pref-lang" className="field" value={form.needs_interpreter ? 'other' : lang}
             onChange={(e) => {
               if (e.target.value === 'other') setForm({ ...form, needs_interpreter: true });
@@ -94,7 +94,7 @@ export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast
                 onChange={set('interpreter_language')} placeholder={s.prefLangWhichPh} />
             </div>
           )}
-          <p className="text-[11px] text-slate-500">{form.needs_interpreter ? s.prefLangOtherHelp : s.prefLangHelp}</p>
+          <p className="text-[11px] text-neutral-500 dark:text-neutral-400">{form.needs_interpreter ? s.prefLangOtherHelp : s.prefLangHelp}</p>
         </div>
 
         <div>
@@ -111,10 +111,10 @@ export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label htmlFor="severity" className="text-xs font-semibold text-slate-600">{s.severity}</label>
+              <label htmlFor="severity" className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">{s.severity}</label>
               <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${severityTone(form.severity)}`}>{form.severity} / 10</span>
             </div>
-            <input id="severity" type="range" min="1" max="10" value={form.severity} onChange={set('severity')} className="w-full accent-teal-700 cursor-pointer mt-1.5" />
+            <input id="severity" type="range" min="1" max="10" value={form.severity} onChange={set('severity')} className="w-full accent-red-700 cursor-pointer mt-1.5" />
           </div>
         </div>
 
@@ -136,12 +136,12 @@ export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast
           </div>
         </div>
 
-        {error && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{error}</p>}
+        {error && <p className="text-sm text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 rounded-xl px-3 py-2">{error}</p>}
 
         <button type="submit" disabled={busy || !form.symptoms.trim()} className="btn-primary w-full">
           <Sparkles className="w-4 h-4" /> {busy ? s.submitting : s.submit}
         </button>
-        <p className="text-xs text-slate-500 flex items-center gap-1.5"><UserRound className="w-3.5 h-3.5" /> {s.frontDeskHelp}</p>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5"><UserRound className="w-3.5 h-3.5" /> {s.frontDeskHelp}</p>
       </form>
 
       <ResultPanel s={s} result={result} kiosk={kiosk} goClinic={goClinic} startOver={startOver} />
@@ -152,8 +152,8 @@ export default function CheckIn({ lang, setLang, plans, preset, kiosk, showToast
 function ResultPanel({ s, result, kiosk, goClinic, startOver }) {
   if (!result) {
     return (
-      <div className="card p-6 flex flex-col items-center justify-center text-center text-slate-500 min-h-[18rem]">
-        <ClipboardEdit className="w-8 h-8 text-slate-300 mb-3" />
+      <div className="card p-6 flex flex-col items-center justify-center text-center text-neutral-500 dark:text-neutral-400 min-h-[18rem]">
+        <ClipboardEdit className="w-8 h-8 text-neutral-300 dark:text-neutral-500 mb-3" />
         <p className="text-sm max-w-sm">{s.prepEmpty}</p>
       </div>
     );
@@ -166,49 +166,49 @@ function ResultPanel({ s, result, kiosk, goClinic, startOver }) {
     <div className="card p-5 sm:p-6 flex flex-col justify-between gap-4 animate-fade-up">
       <div className="space-y-4">
         {level === 'emergency' && (
-          <div role="alert" className="rounded-2xl border-2 border-rose-500 bg-rose-50 p-5 space-y-3">
+          <div role="alert" className="rounded-2xl border-2 border-rose-500 bg-rose-50 dark:bg-rose-950/40 p-5 space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-full bg-rose-600 text-white flex items-center justify-center animate-pulse"><Siren className="w-6 h-6" /></div>
-              <h2 className="text-xl font-extrabold text-rose-900">{msg.title}</h2>
+              <h2 className="text-xl font-extrabold text-rose-900 dark:text-rose-200">{msg.title}</h2>
             </div>
-            <p className="text-base text-rose-950 leading-relaxed">{msg.body}</p>
-            {msg.crisis && <p className="text-base font-semibold text-rose-950">{msg.crisis}</p>}
+            <p className="text-base text-rose-950 dark:text-rose-200 leading-relaxed">{msg.body}</p>
+            {msg.crisis && <p className="text-base font-semibold text-rose-950 dark:text-rose-200">{msg.crisis}</p>}
             <a href="tel:911" className="btn-danger w-full !text-base"><Phone className="w-5 h-5" /> Call 911</a>
-            <p className="text-xs text-rose-800">Clinic staff have already been alerted on their dashboard.</p>
+            <p className="text-xs text-rose-800 dark:text-rose-200">Clinic staff have already been alerted on their dashboard.</p>
           </div>
         )}
 
         {level === 'urgent_review' && (
-          <div role="alert" className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 space-y-1.5">
-            <h2 className="text-base font-bold text-amber-900 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> {msg.title}</h2>
-            <p className="text-sm text-amber-950 leading-relaxed">{msg.body}</p>
+          <div role="alert" className="rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/40 p-4 space-y-1.5">
+            <h2 className="text-base font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> {msg.title}</h2>
+            <p className="text-sm text-amber-950 dark:text-amber-200 leading-relaxed">{msg.body}</p>
           </div>
         )}
 
         {prep && (
           <>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
               <div>
                 <h2 className="text-lg font-bold">{s.prepTitle}</h2>
-                <p className="text-xs text-slate-500">{s.prepSub}</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">{s.prepSub}</p>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">Organized</span>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200">Organized</span>
             </div>
-            <div className="bg-teal-50/70 border border-teal-200 rounded-xl p-4 space-y-2">
-              <h3 className="eyebrow text-teal-800">{s.plainSummary}</h3>
-              <p className="text-sm text-slate-800 leading-relaxed">{prep.summary}</p>
+            <div className="bg-red-50/70 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl p-4 space-y-2">
+              <h3 className="eyebrow text-red-800 dark:text-red-200">{s.plainSummary}</h3>
+              <p className="text-sm text-neutral-800 dark:text-neutral-100 leading-relaxed">{prep.summary}</p>
             </div>
             <div>
-              <h3 className="eyebrow text-slate-500 mb-2">{s.keyDetails}</h3>
-              <ul className="space-y-2 text-sm text-slate-700">
+              <h3 className="eyebrow text-neutral-500 dark:text-neutral-400 mb-2">{s.keyDetails}</h3>
+              <ul className="space-y-2 text-sm text-neutral-700 dark:text-neutral-200">
                 {prep.key_points.map((k) => (
-                  <li key={k.label} className="flex items-start gap-2"><span className="text-teal-700 font-bold">•</span><span><strong>{k.label}:</strong> {k.value}</span></li>
+                  <li key={k.label} className="flex items-start gap-2"><span className="text-red-700 dark:text-red-400 font-bold">•</span><span><strong>{k.label}:</strong> {k.value}</span></li>
                 ))}
               </ul>
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-              <h3 className="eyebrow text-amber-800 mb-1.5">{s.questions}</h3>
-              <ul className="space-y-1 text-sm text-amber-950 list-disc list-inside">
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl p-4">
+              <h3 className="eyebrow text-amber-800 dark:text-amber-200 mb-1.5">{s.questions}</h3>
+              <ul className="space-y-1 text-sm text-amber-950 dark:text-amber-200 list-disc list-inside">
                 {prep.questions.map((q) => <li key={q}>{q}</li>)}
               </ul>
             </div>

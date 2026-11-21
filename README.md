@@ -66,7 +66,8 @@ To test the container locally: `docker build -t carebridge . && docker run --rm 
    privacy (HIPAA) and records (EHR) plans: each item has a plain-English promise, the precise version for compliance and IT
    staff, and a dot showing whether it is live in the demo or planned for launch. (Savings calculator and pricing are hidden for now; the logic stays in `backend/savings.py`.)
 
-Header controls: a **language menu** (English, Español, Français) for every patient screen, check-in prep, answers and follow-up texts;
+Header controls: a **light / dark theme** button (red on white, red on black; it starts from the device setting and is remembered
+on that device); a **language menu** (English, Español, Français) for every patient screen, check-in prep, answers and follow-up texts;
 **Large text**; **Kiosk** (clinic tablet: patient screens only, large text, "start over" button).
 A language is only offered once the safety screen can read it: adding one means its text in `backend/languages.py` and the modules that use it,
 its red-flag rules in `backend/safety.py`, and test phrasings in `tests/safety_cases.py`.

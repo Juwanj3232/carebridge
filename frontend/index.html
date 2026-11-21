@@ -5,11 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CareBridge Pre-Visit Check-In</title>
     <meta name="description" content="Family medicine pre-visit check-in, clinic brief, and after-visit explainer (synthetic demo data)." />
+    <meta name="theme-color" content="#b91c1c" />
+    <script>
+      // Apply the saved theme (or the device setting) before first paint, so dark mode never flashes white.
+      (function () {
+        var saved = null;
+        try { saved = localStorage.getItem('carebridge-theme'); } catch (e) { /* storage blocked */ }
+        var dark = saved ? saved === 'dark' : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.classList.add('dark');
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   </head>
-  <body class="bg-slate-50 text-slate-900 antialiased">
+  <body class="antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

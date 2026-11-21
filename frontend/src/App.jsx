@@ -16,6 +16,7 @@ export default function App() {
   const [lang, setLang] = useState('en');
   const [largeText, setLargeText] = useState(false);
   const [kiosk, setKiosk] = useState(false);
+  const [theme, setTheme] = useState(() => (document.documentElement.classList.contains('dark') ? 'dark' : 'light'));
   const [scenarios, setScenarios] = useState([]);
   const [plans, setPlans] = useState([]);
   const [health, setHealth] = useState(null);
@@ -31,6 +32,11 @@ export default function App() {
       .then(([s, p, h]) => { setScenarios(s.scenarios); setPlans(p.plans); setHealth(h); })
       .catch((e) => setApiError(e.message));
   }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    try { localStorage.setItem('carebridge-theme', theme); } catch { /* storage blocked: the theme still works for this visit */ }
+  }, [theme]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('text-large', largeText || kiosk);
@@ -62,15 +68,15 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <Header tab={tab} go={go} lang={lang} setLang={setLang} largeText={largeText} setLargeText={setLargeText}
-        kiosk={kiosk} setKiosk={setKiosk} staff={staff} />
+        kiosk={kiosk} setKiosk={setKiosk} staff={staff} theme={theme} setTheme={setTheme} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {!kiosk && <DemoBar scenarios={scenarios} onLoad={loadScenario} health={health} lang={lang} />}
 
         {apiError && (
-          <div className="card p-5 border-rose-200 bg-rose-50 text-rose-900 text-sm">
+          <div className="card p-5 border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 text-sm">
             <strong>Cannot reach the CareBridge API.</strong> {apiError}. Start it from the repo root with
-            <code className="mx-1 px-1.5 py-0.5 rounded bg-white border border-rose-200">python3 server.py</code>
+            <code className="mx-1 px-1.5 py-0.5 rounded bg-white dark:bg-neutral-900 border border-rose-200 dark:border-rose-900">python3 server.py</code>
           </div>
         )}
 
@@ -86,16 +92,16 @@ export default function App() {
         {tab === 'clinics' && <ForClinics lang={lang} />}
       </main>
 
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-xs text-slate-500 flex flex-wrap gap-x-6 gap-y-1 justify-between">
+      <footer className="border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-xs text-neutral-500 dark:text-neutral-400 flex flex-wrap gap-x-6 gap-y-1 justify-between">
           <span>{t(lang).footer}</span>
           <span>{t(lang).footer911}</span>
         </div>
       </footer>
 
       {toast && (
-        <div role="status" className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 bg-slate-900 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg animate-fade-up">
-          <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
+        <div role="status" className="fixed bottom-5 right-5 z-50 flex items-center gap-2.5 bg-neutral-900 dark:bg-neutral-700 text-white text-sm font-medium px-4 py-3 rounded-xl shadow-lg animate-fade-up">
+          <CheckCircle2 className="w-4 h-4 text-red-400 shrink-0" />
           <span>{toast}</span>
         </div>
       )}
