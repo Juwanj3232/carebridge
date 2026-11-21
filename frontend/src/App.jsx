@@ -8,6 +8,7 @@ import AfterVisit from './components/AfterVisit.jsx';
 import ForClinics from './components/ForClinics.jsx';
 import { api, session } from './lib/api.js';
 import { t } from './lib/i18n.js';
+import DotPattern from './components/DotPattern.jsx';
 
 // One app, four views, following the visit: check-in (patient) -> clinic dashboard (staff) -> after-visit (patient),
 // plus "For Clinics" (comparison, EHR and privacy plans) for the pitch.
@@ -66,7 +67,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="relative isolate min-h-screen flex flex-col">
+      {/* Dot grid behind every screen. Fixed, so it stays put while the page scrolls. */}
+      <div className="fixed inset-0 -z-10">
+        <DotPattern width={20} height={20} cr={1} className="text-neutral-400/80 dark:text-neutral-700" />
+      </div>
       <Header tab={tab} go={go} lang={lang} setLang={setLang} largeText={largeText} setLargeText={setLargeText}
         kiosk={kiosk} setKiosk={setKiosk} staff={staff} theme={theme} setTheme={setTheme} />
 
