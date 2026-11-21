@@ -19,18 +19,24 @@ python3 server.py            # open http://localhost:8100
 * **Optional Claude:** `pip install -r requirements.txt`, then put `ANTHROPIC_API_KEY=...` in `.env` in this folder.
   Without a key the app runs in rules mode and every feature still works. The red-flag safety screen never uses AI.
 * Frontend dev with hot reload: `cd frontend && npm run dev` (port 5174, proxies `/api` to 8100).
-* Tests: `python3 -m unittest discover -s tests -v` (24 tests, no network, no key).
+* Tests: `python3 -m unittest discover -s tests -v` (33 tests, no network, no key).
 
 ## The demo, in order
 
 1. **Pre-Visit Check-In (patient).** Load a scenario or type symptoms. Plain-code safety rules run first.
-   Red flags show "Tell the front desk right away / call 911" and alert staff in red. Vague worries ("my heart feels weird") get a nurse check.
-2. **Clinic Dashboard (staff, sign-in required).** Queue sorted by urgency, red and amber alerts, 30-second brief with an AI priority agenda
+   Red flags show "Tell the front desk right away / call 911" and are marked RED FLAG for staff. Vague worries ("my heart feels weird") get a nurse check.
+2. **Clinic Dashboard (staff, sign-in required).** Queue sorted by urgency with RED FLAG and Nurse check badges, 30-second brief with an AI priority agenda
    (every item quotes the patient), **Export to EHR** (clean note + FHIR R4 bundle). The clinician types visit notes, presses
    **Draft patient summary**, reviews each line next to the note text it came from, and presses **Approve and send**.
-3. **After-Visit & Costs (patient).** Approved summary only, ending with "Questions? Contact your clinic.", cost table with generic/brand toggle,
-   insurance chart, and **Ask about your visit**: answers only from the approved summary, everything else goes to the care team's inbox.
-4. **For Clinics.** Savings calculator (labeled estimates), per-provider pricing tiers, comparison table, privacy and EHR plans.
+   Flagged follow-up texts and escalated patient questions show at the top with a reply box.
+3. **After-Visit & Costs (patient).** Approved summary only, with the next steps at home first and "Questions? Contact your clinic." at the end.
+   Cost table with generic/brand toggle and the estimated out-of-pocket total, and **Ask about your visit**: answers only from the approved summary.
+   Until the patient's own summary is approved, the page shows the seeded sample (Test Patient Maya).
+   **Follow-up texts:** on approval the follow-up agent texts that the summary is ready and that it will check in about the visit in 3 days.
+   On day 3 it asks about the main symptom ("Is your ear feeling better?") and whether the patient needs anything. Every reply goes through
+   the same safety screen as check-in. Red flags get 911 instructions; "not better", requests and unclear replies land in the staff inbox.
+   The demo button **Send the day-3 check-in now** skips the wait.
+4. **For Clinics.** Comparison table, privacy and EHR plans. (Savings calculator and pricing are hidden for now; the logic stays in `backend/savings.py`.)
 
 Header toggles: **Español**, **Large text**, **Kiosk** (clinic tablet: patient screens only, large text, "start over" button).
 
@@ -43,11 +49,12 @@ Header toggles: **Español**, **Large text**, **Kiosk** (clinic tablet: patient 
 | `backend/intake.py` | Turns patient words into the patient prep sheet and the provider brief / priority agenda. |
 | `backend/summary.py` | Doctor notes to patient summary. Shorthand dictionary in rules mode; Claude mode drops any line not quoted from the notes. |
 | `backend/qa.py` | Patient questions: safety screen, then answer from the approved summary or escalate. |
-| `backend/store.py` | In-memory visits, alerts, approval gate, escalated questions. Seeds five synthetic patients. |
+| `backend/followup.py` | Follow-up agent: day-0 and day-3 texts, safety-screened replies, and what goes to the staff inbox. Plain rules, no AI decisions. |
+| `backend/store.py` | In-memory visits, alerts, approval gate, escalated questions, follow-up threads. Seeds five synthetic patients, one with an approved summary. |
 | `backend/billing.py` | Visit + test + prescription costs per plan (prototype math). |
 | `backend/fhir_export.py` | FHIR R4 Bundle and plain-text note for "Export to EHR". |
 | `backend/auth.py` | Demo staff login: PBKDF2 passwords, signed 8-hour tokens, doctor-only approval. |
-| `backend/savings.py` | Savings calculator and pricing tiers. |
+| `backend/savings.py` | Savings calculator and pricing tiers (not shown in the UI for now). |
 | `backend/ai.py` | Optional Claude call (`claude-opus-5-5`, structured JSON output, server-side refusal fallback). Returns None on any failure so rules take over. |
 | `backend/scenarios.py` | Synthetic "Test Patient" cases. |
 | `frontend/` | React + Vite + Tailwind UI. |
@@ -56,11 +63,11 @@ Header toggles: **Español**, **Large text**, **Kiosk** (clinic tablet: patient 
 
 ## API
 
-Patient: `GET /api/health`, `/api/scenarios`, `/api/plans`, `/api/pricing`, `/api/patient/visits/<id>?generic=1`;
-`POST /api/intake`, `/api/patient/visits/<id>/ask`, `/api/savings`, `/api/login`.
+Patient: `GET /api/health`, `/api/scenarios`, `/api/plans`, `/api/pricing`, `/api/sample-visit`, `/api/patient/visits/<id>?generic=1`;
+`POST /api/intake`, `/api/patient/visits/<id>/ask`, `/api/patient/visits/<id>/followup`, `/api/patient/visits/<id>/followup/send-now` (demo), `/api/savings`, `/api/login`.
 
 Staff (Bearer token): `GET /api/staff/queue`, `/api/staff/inbox`, `/api/staff/visits/<id>`, `/api/staff/visits/<id>/export`;
-`POST /api/staff/visits/<id>/outcome`, `/approve` (doctor only), `/alerts/<aid>/ack`, `/questions/<qid>/resolve`, `/api/staff/reset-demo`.
+`POST /api/staff/visits/<id>/outcome`, `/approve` (doctor only), `/alerts/<aid>/ack`, `/questions/<qid>/resolve`, `/followups/<fid>/resolve`, `/api/staff/reset-demo`.
 
 ## Limits (say these before a judge finds them)
 
@@ -69,4 +76,6 @@ Staff (Bearer token): `GET /api/staff/queue`, `/api/staff/inbox`, `/api/staff/vi
   That is why vague wording and high discomfort go to a nurse, and why staff always see the raw patient text.
 * Rules-mode Q&A is cautious: it escalates when unsure (for example "How long do I take it?"), which is the safe failure.
 * Spanish after-visit summaries need Claude; in rules mode the draft is English and the clinician is told so.
+* Follow-up texts appear in the app only. Real SMS needs a texting provider and patient consent to receive texts.
+  The day-3 check-in is sent when the server next handles a request after it comes due, not by a background scheduler.
 * The FHIR export uses free text, not SNOMED/ICD/RxNorm codes, and is not sent anywhere.

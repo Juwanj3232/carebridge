@@ -10,7 +10,6 @@ The first three are the prototype's cases. Two more show the safety screen:
 SCENARIOS = {
     "ear": {
         "label": "Sinus & Ear Pain",
-        "emoji": "🤒",
         "intake": {
             "name": "Test Patient Maya",
             "insurance": "ppo",
@@ -33,7 +32,6 @@ SCENARIOS = {
     },
     "bp": {
         "label": "BP Refill & Dizziness",
-        "emoji": "💊",
         "intake": {
             "name": "Test Patient Robert",
             "insurance": "hmo",
@@ -56,7 +54,6 @@ SCENARIOS = {
     },
     "ankle": {
         "label": "Ankle Sprain",
-        "emoji": "🩹",
         "intake": {
             "name": "Test Patient Jordan",
             "insurance": "self",
@@ -79,7 +76,6 @@ SCENARIOS = {
     },
     "heart": {
         "label": "Vague: \"heart feels weird\"",
-        "emoji": "💓",
         "intake": {
             "name": "Test Patient Rosa",
             "insurance": "ppo",
@@ -101,7 +97,6 @@ SCENARIOS = {
     },
     "chest": {
         "label": "Red flag: chest pain",
-        "emoji": "🚨",
         "intake": {
             "name": "Test Patient Alex",
             "insurance": "hmo",
@@ -117,5 +112,5 @@ SCENARIOS = {
 
 
 def public_list():
-    return [{"id": k, "label": v["label"], "emoji": v["emoji"], "intake": v["intake"], "outcome": v["outcome"]}
+    return [{"id": k, "label": v["label"], "intake": v["intake"], "outcome": v["outcome"]}
             for k, v in SCENARIOS.items()]

@@ -30,7 +30,7 @@ export default function DemoBar({ scenarios, onLoad, health }) {
         {scenarios.map((s) => (
           <button key={s.id} type="button" onClick={() => onLoad(s)}
             className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${TONE[s.id] || TONE.ear}`}>
-            <span aria-hidden="true">{s.emoji}</span> {s.label}
+            {s.label}
           </button>
         ))}
       </div>

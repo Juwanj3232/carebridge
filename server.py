@@ -9,6 +9,7 @@ Without it every feature runs on plain-code rules. The red-flag safety screen ne
 Public (patient) endpoints                      Staff endpoints (Bearer token from /api/login)
   GET  /api/health                                GET  /api/staff/queue
   GET  /api/scenarios                             GET  /api/staff/inbox
+  GET  /api/sample-visit
   GET  /api/plans                                 GET  /api/staff/visits/<id>
   GET  /api/pricing                               POST /api/staff/visits/<id>/outcome     -> AI draft summary
   POST /api/savings                               POST /api/staff/visits/<id>/approve     -> doctor only
@@ -16,6 +17,8 @@ Public (patient) endpoints                      Staff endpoints (Bearer token fr
   GET  /api/patient/visits/<id>?generic=1         POST /api/staff/visits/<id>/alerts/<aid>/ack
   POST /api/patient/visits/<id>/ask               POST /api/staff/visits/<id>/questions/<qid>/resolve
   POST /api/login                                 POST /api/staff/reset-demo
+  POST /api/patient/visits/<id>/followup          POST /api/staff/visits/<id>/followups/<fid>/resolve
+  POST /api/patient/visits/<id>/followup/send-now (demo: skip ahead to the day-3 check-in)
 """
 
 from __future__ import annotations
@@ -72,6 +75,8 @@ def handle_get(path: str, q: dict, headers):
         return {"ok": True, **ai.status(), "visits": len(store.VISITS)}
     if path == "/api/scenarios":
         return {"scenarios": public_list()}
+    if path == "/api/sample-visit":     # the seeded visit with an approved summary, shown on the after-visit page
+        return {"visit_id": store.SAMPLE_VISIT_ID if store.get(store.SAMPLE_VISIT_ID or "") else None}
     if path == "/api/plans":
         return {"plans": [{"id": k, **v} for k, v in billing.INSURANCE_PLANS.items()]}
     if path == "/api/pricing":
@@ -79,10 +84,12 @@ def handle_get(path: str, q: dict, headers):
     m = re.fullmatch(r"/api/patient/visits/([0-9a-f]+)", path)
     if m:
         generic = q.get("generic", ["1"])[0] != "0"
+        store.send_due_followups()
         return store.patient_view(_visit(m.group(1)), generic)
 
     if path == "/api/staff/queue":
         _require_staff(headers)
+        store.send_due_followups()
         return {"queue": store.queue()}
     if path == "/api/staff/inbox":
         _require_staff(headers)
@@ -150,6 +157,31 @@ def handle_post(path: str, body: dict, headers):
         if not a:
             raise HttpError(404, "Alert not found.")
         return a
+    m = re.fullmatch(r"/api/patient/visits/([0-9a-f]+)/followup", path)
+    if m:
+        message = str(body.get("message") or "").strip()[:600]
+        if not message:
+            raise HttpError(400, "Type a message first.")
+        try:
+            return store.patient_view(store.followup_reply(_visit(m.group(1))["id"], message))
+        except ValueError as e:
+            raise HttpError(409, str(e))
+    m = re.fullmatch(r"/api/patient/visits/([0-9a-f]+)/followup/send-now", path)
+    if m:     # demo only: skip ahead to day 3 instead of waiting
+        v = store.send_checkin(_visit(m.group(1))["id"])
+        if not v:
+            raise HttpError(409, "Follow-up texts start once the clinician approves the visit summary.")
+        return store.patient_view(v)
+    m = re.fullmatch(r"/api/staff/visits/([0-9a-f]+)/followups/([0-9a-f]+)/resolve", path)
+    if m:
+        user = _require_staff(headers)
+        reply = str(body.get("reply") or "").strip()
+        if not reply:
+            raise HttpError(400, "Type a reply first.")
+        fl = store.resolve_followup(m.group(1), m.group(2), reply, user)
+        if not fl:
+            raise HttpError(404, "Follow-up not found.")
+        return fl
     m = re.fullmatch(r"/api/staff/visits/([0-9a-f]+)/questions/([0-9a-f]+)/resolve", path)
     if m:
         user = _require_staff(headers)

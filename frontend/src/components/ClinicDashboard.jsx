@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  AlertTriangle, ArrowRight, BellRing, CheckCircle, FileOutput, Lock, LogOut, MessageSquareWarning, Quote, RefreshCw,
+  ArrowRight, CheckCircle, FileOutput, Lock, LogOut, MessageSquareText, MessageSquareWarning, Quote, RefreshCw,
   Send, ShieldAlert, Siren, Sparkles, Stethoscope,
 } from 'lucide-react';
 import { api, money, timeAgo } from '../lib/api.js';
@@ -17,7 +17,7 @@ const PRIORITY = {
 
 export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId, setActiveVisitId, scenarios, showToast, goAfter }) {
   const [queue, setQueue] = useState([]);
-  const [inbox, setInbox] = useState({ alerts: [], questions: [] });
+  const [inbox, setInbox] = useState({ alerts: [], questions: [], followups: [] });
   const [visit, setVisit] = useState(null);
   const [exportData, setExportData] = useState(null);
   const token = staff?.token;
@@ -60,14 +60,14 @@ export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId,
 
   if (!staff) return <LoginCard signIn={signIn} />;
 
-  const ack = async (a) => {
-    await call(`staff/visits/${a.visit_id}/alerts/${a.id}/ack`, { method: 'POST', body: {} });
-    showToast('Alert acknowledged');
-    refresh(); loadVisit();
-  };
   const resolve = async (q, reply) => {
     await call(`staff/visits/${q.visit_id}/questions/${q.id}/resolve`, { method: 'POST', body: { reply } });
     showToast('Reply sent to patient');
+    refresh();
+  };
+  const resolveFollowup = async (f, reply) => {
+    await call(`staff/visits/${f.visit_id}/followups/${f.id}/resolve`, { method: 'POST', body: { reply } });
+    showToast('Reply texted to patient');
     refresh();
   };
   const openExport = async () => setExportData(await call(`staff/visits/${visit.id}/export`));
@@ -91,7 +91,7 @@ export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId,
         </div>
       </div>
 
-      <Inbox inbox={inbox} ack={ack} resolve={resolve} select={setActiveVisitId} />
+      <Inbox inbox={inbox} resolve={resolve} resolveFollowup={resolveFollowup} select={setActiveVisitId} />
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <aside className="xl:col-span-3 card p-4 space-y-2 h-fit">
@@ -108,6 +108,7 @@ export default function ClinicDashboard({ staff, signIn, signOut, activeVisitId,
                 <span>{timeAgo(v.created_at)}</span><span>{v.channel}</span>{v.language === 'es' && <span>Español</span>}
                 <span>{v.status.replaceAll('_', ' ')}</span>
                 {v.open_questions > 0 && <span className="text-amber-700 font-semibold">{v.open_questions} question(s)</span>}
+                {v.open_followups > 0 && <span className="text-amber-700 font-semibold">{v.open_followups} follow-up reply(s)</span>}
               </p>
             </button>
           ))}
@@ -175,53 +176,55 @@ function LoginCard({ signIn }) {
   );
 }
 
-function Inbox({ inbox, ack, resolve, select }) {
+const FOLLOWUP_TONE = {
+  red: { card: 'border-2 border-rose-500 bg-rose-50', label: 'text-rose-900', tag: 'RED FLAG', tagCls: 'bg-rose-600 text-white' },
+  amber: { card: 'border border-amber-300 bg-amber-50', label: 'text-amber-900', tag: 'Needs a call', tagCls: 'bg-amber-400 text-amber-950' },
+  request: { card: 'border border-sky-200 bg-sky-50', label: 'text-sky-900', tag: 'Request', tagCls: 'bg-sky-100 text-sky-900' },
+};
+
+// Shows only what staff must act on after the visit: follow-up texts the agent flagged and escalated patient
+// questions. Check-in safety alerts stay visible as badges in the queue and brief. Hidden when empty.
+function Inbox({ inbox, resolve, resolveFollowup, select }) {
   const [replies, setReplies] = useState({});
-  if (!inbox.alerts.length && !inbox.questions.length) {
-    return (
-      <div className="card p-4 text-sm text-slate-500 flex items-center gap-2">
-        <CheckCircle className="w-4 h-4 text-emerald-600" /> No open safety alerts or patient questions.
-      </div>
-    );
-  }
+  const followups = inbox.followups || [];
+  if (!inbox.questions.length && !followups.length) return null;
+  const replyBox = (id, onSend, label) => (
+    <div className="flex gap-2 mt-2">
+      <input className="field !py-1.5" placeholder={label} value={replies[id] || ''}
+        onChange={(e) => setReplies({ ...replies, [id]: e.target.value })} />
+      <button type="button" className="btn-primary !py-1.5 !px-3 !text-xs" disabled={!replies[id]?.trim()}
+        onClick={() => { onSend(replies[id]); setReplies({ ...replies, [id]: '' }); }}><Send className="w-3.5 h-3.5" /> Reply</button>
+    </div>
+  );
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <div className="space-y-2">
-        {inbox.alerts.map((a) => (
-          <div key={a.id} role="alert" className={`rounded-2xl border-2 p-4 flex items-start gap-3 ${a.level === 'red' ? 'border-rose-500 bg-rose-50' : 'border-amber-400 bg-amber-50'}`}>
-            {a.level === 'red'
-              ? <Siren className="w-6 h-6 text-rose-600 shrink-0 animate-pulse" />
-              : <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />}
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm font-bold ${a.level === 'red' ? 'text-rose-900' : 'text-amber-900'}`}>{a.name} · {timeAgo(a.created_at)}</p>
-              <p className="text-sm text-slate-800 mt-0.5">{a.message}</p>
-              <div className="flex gap-2 mt-2">
-                <button type="button" className="btn-ghost !py-1 !px-2.5 !text-xs" onClick={() => select(a.visit_id)}>Open brief</button>
-                <button type="button" className={`${a.level === 'red' ? 'btn-danger' : 'btn-dark'} !py-1 !px-2.5 !text-xs`} onClick={() => ack(a)}>
-                  <BellRing className="w-3.5 h-3.5" /> Acknowledge
-                </button>
-              </div>
+    <div className="space-y-2">
+      {followups.map((f) => {
+        const tone = FOLLOWUP_TONE[f.level] || FOLLOWUP_TONE.amber;
+        return (
+          <div key={f.id} role={f.level === 'red' ? 'alert' : undefined} className={`rounded-2xl p-4 ${tone.card}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${tone.tagCls}`}>{tone.tag}</span>
+              <p className={`text-xs font-bold flex items-center gap-1.5 ${tone.label}`}>
+                <MessageSquareText className="w-4 h-4" /> Follow-up text, day {f.day} · {f.name} · {timeAgo(f.created_at)}
+              </p>
+              <button type="button" className="ml-auto text-xs font-semibold text-teal-800 hover:underline" onClick={() => select(f.visit_id)}>Open brief</button>
             </div>
+            <p className="text-sm text-slate-900 mt-1">"{f.message}"</p>
+            <p className="text-xs text-slate-600 mt-0.5">{f.reason}</p>
+            {replyBox(f.id, (r) => resolveFollowup(f, r), 'Text a reply to the patient')}
           </div>
-        ))}
-      </div>
-      <div className="space-y-2">
-        {inbox.questions.map((q) => (
-          <div key={q.id} className="card p-4 border-amber-200">
-            <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
-              <MessageSquareWarning className="w-4 h-4" /> Patient question for the care team · {q.name} · {timeAgo(q.created_at)}
-            </p>
-            <p className="text-sm text-slate-900 mt-1">"{q.question}"</p>
-            <p className="text-xs text-slate-500 mt-0.5">Not covered by the approved summary, so the assistant did not answer it.</p>
-            <div className="flex gap-2 mt-2">
-              <input className="field !py-1.5" placeholder="Type a reply to the patient" value={replies[q.id] || ''}
-                onChange={(e) => setReplies({ ...replies, [q.id]: e.target.value })} />
-              <button type="button" className="btn-primary !py-1.5 !px-3 !text-xs" disabled={!replies[q.id]?.trim()}
-                onClick={() => resolve(q, replies[q.id])}><Send className="w-3.5 h-3.5" /> Reply</button>
-            </div>
-          </div>
-        ))}
-      </div>
+        );
+      })}
+      {inbox.questions.map((q) => (
+        <div key={q.id} className="card p-4 border-amber-200">
+          <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+            <MessageSquareWarning className="w-4 h-4" /> Patient question for the care team · {q.name} · {timeAgo(q.created_at)}
+          </p>
+          <p className="text-sm text-slate-900 mt-1">"{q.question}"</p>
+          <p className="text-xs text-slate-500 mt-0.5">Not covered by the approved summary, so the assistant did not answer it.</p>
+          {replyBox(q.id, (r) => resolve(q, r), 'Type a reply to the patient')}
+        </div>
+      ))}
     </div>
   );
 }

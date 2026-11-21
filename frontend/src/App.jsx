@@ -9,7 +9,7 @@ import ForClinics from './components/ForClinics.jsx';
 import { api, session } from './lib/api.js';
 
 // One app, four views, following the visit: check-in (patient) -> clinic dashboard (staff) -> after-visit (patient),
-// plus "For Clinics" (savings calculator, pricing, comparison, privacy plan) for the pitch.
+// plus "For Clinics" (comparison, EHR and privacy plans) for the pitch.
 export default function App() {
   const [tab, setTab] = useState('checkin');
   const [lang, setLang] = useState('en');
@@ -21,6 +21,7 @@ export default function App() {
   const [apiError, setApiError] = useState(null);
   const [preset, setPreset] = useState(null);          // {intake, nonce} loaded into the check-in form
   const [activeVisitId, setActiveVisitId] = useState(null);
+  const [patientVisitId, setPatientVisitId] = useState(null);   // the visit Step 3 shows: the patient's own, or one staff opened
   const [staff, setStaff] = useState(() => session.get('carebridge-staff'));
   const [toast, setToast] = useState(null);
 
@@ -73,13 +74,13 @@ export default function App() {
 
         {tab === 'checkin' && (
           <CheckIn lang={lang} plans={plans} preset={preset} kiosk={kiosk} showToast={showToast}
-            onCheckedIn={(id) => setActiveVisitId(id)} goClinic={() => go('clinic')} />
+            onCheckedIn={(id) => { setActiveVisitId(id); setPatientVisitId(id); }} goClinic={() => go('clinic')} />
         )}
         {tab === 'clinic' && (
           <ClinicDashboard staff={staff} signIn={signIn} signOut={signOut} activeVisitId={activeVisitId}
-            setActiveVisitId={setActiveVisitId} scenarios={scenarios} showToast={showToast} goAfter={() => go('after')} />
+            setActiveVisitId={setActiveVisitId} scenarios={scenarios} showToast={showToast} goAfter={() => { setPatientVisitId(activeVisitId); go('after'); }} />
         )}
-        {tab === 'after' && <AfterVisit lang={lang} visitId={activeVisitId} showToast={showToast} />}
+        {tab === 'after' && <AfterVisit lang={lang} visitId={patientVisitId} showToast={showToast} />}
         {tab === 'clinics' && <ForClinics />}
       </main>
 

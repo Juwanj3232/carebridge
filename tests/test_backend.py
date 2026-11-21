@@ -14,7 +14,7 @@ os.environ["CAREBRIDGE_DISABLE_AI"] = "1"          # tests never call the API
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from backend import ai, auth, billing, fhir_export, qa, safety, savings, store, summary   # noqa: E402
+from backend import ai, auth, billing, fhir_export, followup, qa, safety, savings, store, summary   # noqa: E402
 from backend.scenarios import SCENARIOS                                                   # noqa: E402
 
 
@@ -153,6 +153,81 @@ class StoreFlow(unittest.TestCase):
         self.assertEqual(v["brief"]["agenda"][0]["priority"], "urgent")
 
 
+class FollowUpAgent(unittest.TestCase):
+    DOC = {"name": "Dr. Demo (Test Clinician)"}
+
+    def approved_ear_visit(self):
+        v = store.create_visit(SCENARIOS["ear"]["intake"], scenario="ear")
+        store.set_outcome(v["id"], SCENARIOS["ear"]["outcome"], use_ai=False)
+        store.approve_summary(v["id"], None, self.DOC)
+        return v
+
+    def test_day0_text_on_approval_and_day3_question_matches_symptom(self):
+        v = self.approved_ear_visit()
+        f = v["followup"]
+        self.assertEqual(f["stage"], "scheduled")
+        self.assertIn("check in with you in 3 days", f["messages"][0]["text"])
+        store.send_checkin(v["id"])
+        self.assertIn("Is your ear feeling better?", f["messages"][-1]["text"])
+        self.assertEqual(f["messages"][-1]["day"], 3)
+        self.assertEqual(f["stage"], "awaiting_checkin")
+
+    def test_no_followup_before_approval(self):
+        v = store.create_visit(SCENARIOS["ear"]["intake"])
+        self.assertIsNone(v["followup"])
+        with self.assertRaises(ValueError):
+            store.followup_reply(v["id"], "hi")
+
+    def test_due_checkins_send_themselves(self):
+        v = self.approved_ear_visit()
+        v["followup"]["due_at"] = "2000-01-01T00:00:00+00:00"
+        store.send_due_followups()
+        self.assertIsNotNone(v["followup"]["checkin_sent_at"])
+
+    def test_better_then_nothing_needed_stays_out_of_inbox(self):
+        v = self.approved_ear_visit()
+        store.send_checkin(v["id"])
+        store.followup_reply(v["id"], "Yes, much better and no fever")
+        self.assertIn("Do you need anything", v["followup"]["messages"][-1]["text"])
+        store.followup_reply(v["id"], "No, I'm good")
+        self.assertEqual(v["followup"]["stage"], "done")
+        self.assertEqual(v["followup_flags"], [])
+
+    def test_red_flag_reply_gets_911_and_red_inbox_item(self):
+        v = self.approved_ear_visit()
+        store.send_checkin(v["id"])
+        store.followup_reply(v["id"], "I have chest pain now")
+        self.assertIn("911", v["followup"]["messages"][-1]["text"])
+        mine = [f for f in store.inbox()["followups"] if f["visit_id"] == v["id"]]
+        self.assertEqual(mine[0]["level"], "red")
+        self.assertIn("RED FLAG", mine[0]["reason"])
+
+    def test_crisis_line_on_self_harm_reply(self):
+        r = followup.handle_reply("I want to kill myself", "awaiting_checkin", None, "en")
+        self.assertIn("988", r["replies"][0])
+
+    def test_not_better_request_and_unclear_go_to_staff(self):
+        for msg, level in [("No", "amber"), ("Still hurts and the fever is back", "amber"), ("Can I get a work note?", "request"),
+                           ("banana", "amber")]:
+            r = followup.handle_reply(msg, "awaiting_checkin", None, "en")
+            self.assertEqual(r["flag"]["level"], level, msg)
+
+    def test_staff_reply_reaches_patient_thread(self):
+        v = self.approved_ear_visit()
+        store.send_checkin(v["id"])
+        store.followup_reply(v["id"], "I need a refill please")
+        fl = v["followup_flags"][-1]
+        store.resolve_followup(v["id"], fl["id"], "Sent to your pharmacy.", self.DOC)
+        self.assertEqual(fl["status"], "resolved")
+        last = store.patient_view(v)["followup"]["messages"][-1]
+        self.assertEqual((last["from"], last["text"]), ("care_team", "Sent to your pharmacy."))
+        self.assertNotIn("followup_flags", store.patient_view(v))
+
+    def test_spanish(self):
+        self.assertEqual(followup.checkin_question([{"id": "ear"}], "", "es"), "¿Se siente mejor su oído?")
+        self.assertIsNone(followup.handle_reply("Sí, mucho mejor", "awaiting_checkin", None, "es")["flag"])
+
+
 class Fhir(unittest.TestCase):
     def test_bundle(self):
         v = store.create_visit(SCENARIOS["bp"]["intake"], "bp")
@@ -217,6 +292,16 @@ class Http(unittest.TestCase):
         self.assertEqual(exp["fhir"]["resourceType"], "Bundle")
         code, q = self.call("POST", f"/api/patient/visits/{vid}/ask", {"question": "How often do I ice it?"})
         self.assertEqual(code, 200)
+        code, pv = self.call("POST", f"/api/patient/visits/{vid}/followup/send-now", {})
+        self.assertIn("Is your ankle feeling better?", pv["followup"]["messages"][-1]["text"])
+        code, pv = self.call("POST", f"/api/patient/visits/{vid}/followup", {"message": "It's still swollen and worse"})
+        self.assertEqual(code, 200)
+        inbox = self.call("GET", "/api/staff/inbox", token=nurse)[1]
+        fl = next(f for f in inbox["followups"] if f["visit_id"] == vid)
+        code, _ = self.call("POST", f"/api/staff/visits/{vid}/followups/{fl['id']}/resolve", {"reply": "Nurse will call at 2pm."}, nurse)
+        self.assertEqual(code, 200)
+        pv = self.call("GET", f"/api/patient/visits/{vid}")[1]
+        self.assertEqual(pv["followup"]["messages"][-1]["text"], "Nurse will call at 2pm.")
         code, s = self.call("POST", "/api/savings", {"patients_per_day": 40})
         self.assertTrue(s["pays_for_itself"])
 
