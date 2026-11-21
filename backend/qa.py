@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 
-from . import ai, languages, safety
+from . import ai, languages, safety, second_opinion
 from .safety import normalize
 
 STOP = set("""a an the i im me my mine you your yours is are was were be been am do does did can could should would will
@@ -101,9 +101,11 @@ APPROVED SUMMARY:
 {summary}"""
 
 
-def answer(question: str, summary: dict, language: str = "en") -> dict:
+def answer(question: str, summary: dict, language: str = "en", screen: safety.SafetyResult | None = None,
+           who: dict | None = None) -> dict:
     lang = languages.code(language)
-    screen = safety.screen(question, language=lang)
+    # Rules first, then the AI second opinion if they found nothing (the patient is at home after the visit).
+    screen = screen or second_opinion.check(question, None, lang, at_clinic=False, source="after-visit question", who=who)
     if screen.level == "emergency":
         msg = screen.patient_message
         return {"kind": "emergency", "answer": f"{msg['title']}. {msg['body']}" + (f" {msg['crisis']}" if msg.get("crisis") else ""),
@@ -122,7 +124,9 @@ def answer(question: str, summary: dict, language: str = "en") -> dict:
         return {"kind": "escalated", "answer": ESCALATE[lang], "escalated": True, "answered_by": "claude"}
 
     if screen.level == "urgent_review":
-        return {"kind": "escalated", "answer": ESCALATE[lang], "escalated": True, "safety": screen.to_dict(), "answered_by": "rules"}
+        msg = screen.patient_message if screen.source == "ai" else None
+        return {"kind": "escalated", "answer": f"{msg['title']}. {msg['body']}" if msg else ESCALATE[lang], "escalated": True,
+                "safety": screen.to_dict(), "answered_by": "rules"}
     found = _rules_answer(question, summary)
     if found:
         return {"kind": "answer", "answer": f"{ANSWER_PREFIX[lang]}{found} {FOOTER[lang]}", "quote": found,

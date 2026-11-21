@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from backend import ai, auth, billing, fhir_export, followup, qa, safety, savings, store, summary   # noqa: E402
+from backend import ai, auth, billing, fhir_export, followup, qa, safety, savings, second_opinion, store, summary   # noqa: E402
 from backend.scenarios import SCENARIOS                                                   # noqa: E402
 
 
@@ -287,6 +287,108 @@ class FollowUpAgent(unittest.TestCase):
         self.assertEqual(followup.checkin_question([{"id": "ear"}], "", "es"), "¿Se siente mejor su oído?")
         self.assertIsNone(followup.handle_reply("Sí, mucho mejor", "awaiting_checkin", None, "es")["flag"])
 
+
+
+class SecondOpinion(unittest.TestCase):
+    """The AI second opinion (backend/second_opinion.py), with the model call replaced by a stand-in."""
+
+    def setUp(self):
+        second_opinion.clear()
+
+    def fake(self, level, quote="", reason="Possible venomous bite.", self_harm=False):
+        return mock.patch.object(ai, "ask_json", return_value={"level": level, "quote": quote, "reason": reason,
+                                                               "self_harm": self_harm})
+
+    def test_ai_emergency_at_home_says_call_911_and_is_logged(self):
+        with self.fake("emergency", "bit by a snake"):
+            r = second_opinion.check("I got bit by a snake", language="en", at_clinic=False,
+                                     who={"visit_id": None, "name": "Test Patient", "callback_phone": "555-0100"})
+        self.assertEqual((r.level, r.source, r.ai_allowed), ("emergency", "ai", False))
+        self.assertIn("911", r.patient_message["body"])
+        self.assertIn("emergency room", r.patient_message["body"])
+        self.assertIn("AI FLAG", r.staff_message)
+        self.assertIn('"bit by a snake"', r.staff_message)
+        self.assertIn("555-0100", r.staff_message)
+        miss = second_opinion.possible_misses()[0]
+        self.assertEqual((miss["ai_level"], miss["status"]), ("emergency", "open"))
+        self.assertEqual(miss["test_case"], "(E, \"ai_found\", 'I got bit by a snake'),")
+
+    def test_ai_emergency_at_clinic_says_front_desk(self):
+        with self.fake("emergency", "bit by a snake"):
+            r = second_opinion.check("I got bit by a snake", at_clinic=True)
+        self.assertEqual(r.patient_message["title"], "Tell the front desk right away")
+        self.assertNotIn("911", r.patient_message["body"])
+        self.assertIn("See patient now", r.staff_message)
+
+    def test_ai_urgent_at_home_gives_clinic_number_in_each_language(self):
+        for lang, word in (("en", "call the clinic"), ("es", "Llame a la clínica"), ("fr", "Appelez la clinique")):
+            with self.fake("urgent", ""):
+                r = second_opinion.check("my cut is red and spreading", language=lang, at_clinic=False)
+            self.assertEqual(r.level, "urgent_review")
+            self.assertIn(second_opinion.CLINIC_PHONE, r.patient_message["body"])
+            self.assertIn(word.lower(), r.patient_message["body"].lower() + r.patient_message["title"].lower())
+            self.assertIn("No call-back number given", r.staff_message)
+
+    def test_ai_is_never_asked_when_the_rules_already_flagged(self):
+        with mock.patch.object(ai, "ask_json") as called:
+            r = second_opinion.check("I have chest pain")
+        called.assert_not_called()
+        self.assertEqual((r.level, r.source), ("emergency", "rules"))
+
+    def test_ai_cannot_clear_or_lower_anything(self):
+        with self.fake("routine"):
+            self.assertEqual(second_opinion.check("I need a refill").level, "routine")
+            self.assertEqual(second_opinion.check("no chest pain").level, "urgent_review")    # rules nurse check stands
+        self.assertEqual(second_opinion.possible_misses(), [])
+
+    def test_no_answer_timeout_or_bad_answer_leaves_the_rules_result(self):
+        for bad in (None, {"level": "panic"}, "not json"):
+            with mock.patch.object(ai, "ask_json", return_value=bad):
+                r = second_opinion.check("I got bit by a snake")
+            self.assertEqual((r.level, r.source), ("routine", "rules"))
+
+    def test_made_up_quote_is_dropped(self):
+        with self.fake("emergency", "rattlesnake venom everywhere"):
+            r = second_opinion.check("I got bit by a snake")
+        self.assertEqual(r.matches[0]["phrase"], "I got bit by a snake")     # the patient's own words, not the AI's
+
+    def test_self_harm_adds_the_crisis_line(self):
+        with self.fake("emergency", "no point anymore", self_harm=True):
+            r = second_opinion.check("there's no point anymore, I'm done")
+        self.assertIn("988", r.patient_message["crisis"])
+
+    def test_check_in_flow_marks_the_visit_and_queue(self):
+        with self.fake("emergency", "bit by a snake"):
+            v = store.create_visit({"name": "Test Patient Snake", "symptoms": "I got bit by a snake on my hike",
+                                    "channel": "kiosk", "callback_phone": "(555) 010-0199"})
+        self.assertEqual(v["safety"]["source"], "ai")
+        self.assertEqual(v["alerts"][0]["source"], "ai")
+        self.assertEqual(v["intake"]["callback_phone"], "(555) 010-0199")
+        row = next(q for q in store.queue() if q["id"] == v["id"])
+        self.assertTrue(row["ai_flag"])
+        self.assertEqual(second_opinion.possible_misses()[0]["visit_id"], v["id"])
+
+    def test_follow_up_reply_and_question_get_the_second_opinion(self):
+        with self.fake("urgent", "red streaks"):
+            out = followup.handle_reply("there are red streaks going up my arm", "awaiting_checkin", None, "en")
+        self.assertEqual(out["flag"]["level"], "amber")
+        self.assertIn("AI FLAG", out["flag"]["reason"])
+        self.assertIn(second_opinion.CLINIC_PHONE, out["replies"][0])
+        summary_ = {"diagnosis": "Ear infection", "lines": []}
+        with self.fake("emergency", "bit by a snake"):
+            res = qa.answer("I just got bit by a snake, what do I do?", summary_, "en")
+        self.assertEqual(res["kind"], "emergency")
+        self.assertIn("911", res["answer"])
+        self.assertEqual(len(second_opinion.possible_misses()), 2)
+
+    def test_staff_review_of_a_possible_miss(self):
+        with self.fake("emergency", "bit by a snake"):
+            second_opinion.check("I got bit by a snake")
+        mid = second_opinion.possible_misses()[0]["id"]
+        done = second_opinion.resolve(mid, "real_miss", {"name": "Dr. Demo"})
+        self.assertEqual((done["status"], done["verdict"]), ("reviewed", "real_miss"))
+        with self.assertRaises(ValueError):
+            second_opinion.resolve(mid, "maybe", {"name": "Dr. Demo"})
 
 
 class AiDailyLimit(unittest.TestCase):

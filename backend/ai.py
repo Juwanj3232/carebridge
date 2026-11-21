@@ -2,7 +2,8 @@
 Optional Claude layer. Every caller has a plain-code fallback, so the app runs with no key and no SDK.
 
 Rules that keep the AI safe (judge items #7 and #8):
-  * It is only called after safety.screen() allows it.
+  * It is only called after safety.screen() allows it. The second opinion (second_opinion.py) runs only when the
+    rules found nothing, and can only escalate.
   * It only sees the text it must transform (patient intake, or the doctor's own notes, or the approved summary).
   * Every output is JSON with a "source" quote; callers drop anything whose quote isn't in the input.
 """
@@ -73,18 +74,24 @@ def _get_client():
     return _client
 
 
-def ask_json(system: str, user: str, schema: dict, max_tokens: int = 4000) -> dict | None:
-    """One structured-output call. Returns parsed JSON, or None on any failure (caller then uses rules)."""
+def ask_json(system: str, user: str, schema: dict, max_tokens: int = 4000, model: str | None = None,
+             timeout: float | None = None) -> dict | None:
+    """One structured-output call. Returns parsed JSON, or None on any failure (caller then uses rules).
+
+    model: defaults to MODEL. timeout: seconds for this call only, with no retry (the caller can't wait longer).
+    The server-side refusal fallback is used with the default model only; Claude Haiku 5.5 has none."""
     if not enabled():
         return None
     if not _take_call():
         return None              # daily cap reached: the caller uses its rules fallback
+    model = model or MODEL
+    fallback = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"} if model == MODEL else {}
+    client = _get_client() if timeout is None else _get_client().with_options(timeout=timeout, max_retries=0)
     try:
-        response = _get_client().beta.messages.create(
-            model=MODEL,
+        response = client.beta.messages.create(
+            model=model,
             max_tokens=max_tokens,
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",                 # a declined request is retried on a fallback model server-side
+            **fallback,                           # a declined request is retried on a fallback model server-side
             system=system,
             messages=[{"role": "user", "content": user}],
             output_config={"effort": "low", "format": {"type": "json_schema", "schema": schema}},
@@ -95,8 +102,8 @@ def ask_json(system: str, user: str, schema: dict, max_tokens: int = 4000) -> di
         return json.loads(text)
     except anthropic.APIStatusError as e:
         print(f"[ai] API error {e.status_code}: {e.message}")
-    except anthropic.APIConnectionError:
-        print("[ai] network error; using rules")
+    except anthropic.APIConnectionError:            # also covers a timeout (APITimeoutError is a subclass)
+        print("[ai] network error or timeout; using rules")
     except (json.JSONDecodeError, StopIteration, TypeError, AttributeError) as e:
         print(f"[ai] unusable response ({type(e).__name__}); using rules")
     return None

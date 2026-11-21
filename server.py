@@ -40,7 +40,7 @@ try:
 except ImportError:
     pass
 
-from backend import ai, auth, billing, fhir_export, savings, store          # noqa: E402
+from backend import ai, auth, billing, fhir_export, savings, second_opinion, store          # noqa: E402
 from backend.scenarios import public_list                                 # noqa: E402
 
 DIST_DIR = ROOT / "frontend" / "dist"
@@ -72,7 +72,7 @@ def _visit(vid: str) -> dict:
 
 def handle_get(path: str, q: dict, headers):
     if path == "/api/health":
-        return {"ok": True, **ai.status(), "visits": len(store.VISITS)}
+        return {"ok": True, **ai.status(), "second_opinion": second_opinion.status(), "visits": len(store.VISITS)}
     if path == "/api/scenarios":
         return {"scenarios": public_list()}
     if path == "/api/sample-visit":     # the seeded visit with an approved summary, shown on the after-visit page
@@ -94,6 +94,9 @@ def handle_get(path: str, q: dict, headers):
     if path == "/api/staff/inbox":
         _require_staff(headers)
         return store.inbox()
+    if path == "/api/staff/possible-misses":        # AI second-opinion flags the keyword rules missed, for review
+        _require_staff(headers)
+        return {"misses": second_opinion.possible_misses()}
     m = re.fullmatch(r"/api/staff/visits/([0-9a-f]+)", path)
     if m:
         _require_staff(headers)
@@ -133,6 +136,7 @@ def handle_post(path: str, body: dict, headers):
     if path == "/api/staff/reset-demo":
         _require_staff(headers)
         store.VISITS.clear()
+        second_opinion.clear()
         store.seed_demo()
         return {"ok": True, "queue": store.queue()}
     m = re.fullmatch(r"/api/staff/visits/([0-9a-f]+)/outcome", path)
@@ -182,6 +186,16 @@ def handle_post(path: str, body: dict, headers):
         if not fl:
             raise HttpError(404, "Follow-up not found.")
         return fl
+    m = re.fullmatch(r"/api/staff/possible-misses/([0-9a-f]+)/review", path)
+    if m:
+        user = _require_staff(headers)
+        try:
+            item = second_opinion.resolve(m.group(1), str(body.get("verdict") or ""), user)
+        except ValueError as e:
+            raise HttpError(400, str(e))
+        if not item:
+            raise HttpError(404, "Item not found.")
+        return item
     m = re.fullmatch(r"/api/staff/visits/([0-9a-f]+)/questions/([0-9a-f]+)/resolve", path)
     if m:
         user = _require_staff(headers)

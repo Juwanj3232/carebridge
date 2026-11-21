@@ -407,3 +407,39 @@ TUNING += [
     (OK, "fuzzy_trap", "I keep my gun locked in a safe"),
     (OK, "fuzzy_trap", "I can't wake up early for appointments"),
 ]
+
+# NEW_WORDING: for measuring the AI second opinion (scripts/second_opinion_benchmark.py). Written Nov 21, 2026 with
+# labels set before any scoring. NEVER used to tune the keyword rules, so it stays an honest held-out set; it is not
+# part of the unit tests, because the rules are expected to miss some of it.
+NEW_WORDING = [
+    (E, "plain", "I got bit by a snake"),
+    (E, "plain", "my water broke and the baby is coming"),
+    (E, "plain", "my kid ate some of grandma's heart pills"),
+    (E, "plain", "there's a lot of blood in the toilet"),
+    (E, "plain", "my husband's speech is garbled all of a sudden"),
+    (E, "plain", "I got stung by a bee and my tongue feels thick"),
+    (E, "plain", "I'm 8 months pregnant and the baby stopped moving"),
+    (E, "plain", "he fell and his leg is bent the wrong way"),
+    (E, "plain", "my 2 week old is really floppy and won't eat"),
+    (E, "plain", "my mom is acting really strange and can't find her words"),
+    (E, "plain", "I can't swallow and I'm drooling"),
+    (E, "plain", "I'm going to take all my sleeping pills tonight"),
+    (R, "vague", "I've had a fever for 6 days"),
+    (R, "vague", "the cut on my hand is red and the redness is spreading"),
+    (R, "vague", "I think my ankle is broken"),
+    (R, "vague", "I've been throwing up all day and can't keep water down"),
+    (R, "vague", "my blood pressure reading was 190 over 120"),
+    (R, "vague", "I haven't peed since yesterday"),
+    (OK, "routine", "I need a refill of my inhaler"),
+    (OK, "routine", "my knee aches when it rains"),
+    (OK, "routine", "I want to talk about losing weight"),
+    (OK, "routine", "can I get a flu shot today"),
+    (OK, "routine", "I've had a mild cough for 2 days"),
+    (OK, "routine", "I need a school sports physical"),
+    (OK, "fuzzy_trap", "my snake plant is dying but I'm fine, just here for a checkup"),
+    (OK, "fuzzy_trap", "I had a baby last year and need my annual checkup"),
+    (OK, "routine", "I'd like to get my cholesterol checked"),
+    (OK, "fuzzy_trap", "I got bitten by mosquitoes on vacation and they itch"),
+    (OK, "fuzzy_trap", "this paperwork is killing me, but my back pain is mild"),
+    (OK, "routine", "follow-up for my thyroid medicine"),
+]
