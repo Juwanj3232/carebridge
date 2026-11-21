@@ -11,6 +11,9 @@ TUNING cases were used while improving the rules.
 HELDOUT_1 was written with TUNING and scored before any rule was changed for it (round 1: 19 of 28 emergencies,
 6 of 6 nurse checks, 0 false alarms). Its misses were then fixed, so it now counts as tuning data too.
 HELDOUT_2 was written after round 1 and before those fixes, and is scored once at the end: the honest number.
+HELDOUT_3 was written on Nov 21, 2026 during judge prep, as messages a judge might type into the live demo. Labels
+were set before scoring; it was scored once before any rule change (see docs/SAFETY_BENCHMARK.md), then its misses
+were fixed, so it now counts as tuning data too.
 All phrasings were written by the CareBridge team; they are not real patient messages.
 """
 
@@ -311,4 +314,96 @@ FRENCH_HELDOUT = [
     (R, "vague", "quelque chose ne va pas du tout"),
     (OK, "routine", "j'ai une éruption sur le bras"),
     (OK, "routine", "je voudrais un certificat pour l'école"),
+]
+
+
+HELDOUT_3 = [
+    # ---- judge-style emergencies
+    (E, "plain", "I feel like I'm dying, help"),
+    (E, "plain", "I took too many pills"),
+    (E, "plain", "I overdosed"),
+    (E, "plain", "the baby is blue"),
+    (E, "plain", "my lips are turning blue"),
+    (E, "plain", "I think I'm having a heart attack"),
+    (E, "plain", "heart attack"),
+    (E, "plain", "my arm is numb and my chest hurts"),
+    (E, "plain", "I can't breathe"),
+    (E, "plain", "worst headache of my life"),
+    (E, "plain", "I passed out"),
+    (E, "plain", "my face is drooping"),
+    (E, "plain", "I'm bleeding a lot and it won't stop"),
+    (E, "plain", "my throat is closing up"),
+    (E, "plain", "I got stung and my face is swelling"),
+    (E, "plain", "I want to kill myself"),
+    (E, "plain", "I don't want to be alive anymore"),
+    (E, "plain", "I'm thinking about hurting myself"),
+    (E, "plain", "my baby has a fever of 105"),
+    (E, "plain", "my child swallowed bleach"),
+    (E, "plain", "I hit my head and I'm confused"),
+    (E, "plain", "I can't feel my legs"),
+    # ---- nurse check: serious, but the design sends these to a nurse, not straight to 911
+    (R, "vague", "I'm pregnant and bleeding"),
+    (R, "vague", "my stomach pain is 10 out of 10"),
+    (R, "vague", "I was in a car accident"),
+    # ---- routine, including traps for the new wording
+    (OK, "routine", "I have a sore throat"),
+    (OK, "routine", "I need a refill on my lisinopril"),
+    (OK, "fuzzy_trap", "I was dying to get in to see the doctor about my rash"),
+    (OK, "fuzzy_trap", "I ran out of my pills and need more"),
+    (OK, "fuzzy_trap", "the car accident was years ago but my back still aches"),
+    (OK, "fuzzy_trap", "my toddler swallowed some gum"),
+]
+
+# Added with the round-3 fixes (tuning data): traps for the new wording, and the new rules in Spanish and French.
+TUNING += [
+    (OK, "fuzzy_trap", "I feel like I'm doing better"),
+    (OK, "fuzzy_trap", "I'm doing fine, just a cough"),
+    (OK, "fuzzy_trap", "I'm drying my hair and my ear hurts"),
+    (OK, "fuzzy_trap", "I'm dyeing my hair this weekend"),
+    (OK, "fuzzy_trap", "I'm dying to get this cast off"),
+    (OK, "fuzzy_trap", "I need to pay my bills"),
+    (OK, "fuzzy_trap", "my baby has a runny nose"),
+    (OK, "fuzzy_trap", "I banged my head on the cabinet last week but I feel fine"),
+    (OK, "fuzzy_trap", "my fever was 101 last night"),
+    (R, "vague", "my newborn has a fever"),
+    (E, "plain", "my son drank antifreeze"),
+    (E, "plain", "he got knocked out playing football"),
+    (E, "spanish", "me tomé demasiadas pastillas"),
+    (E, "spanish", "siento que me muero"),
+    (E, "spanish", "mi bebé está morado"),
+    (E, "spanish", "mi hijo tragó cloro"),
+    (E, "spanish", "no siento las piernas"),
+    (OK, "fuzzy_trap", "me muero de hambre"),
+]
+
+FRENCH += [
+    (E, "french", "j'ai pris trop de médicaments"),
+    (E, "french", "j'ai l'impression de mourir"),
+    (E, "french", "mon bébé devient bleu"),
+    (E, "french", "je ne sens plus mes jambes"),
+    (OK, "fuzzy_trap", "je meurs de faim"),
+]
+
+# HELDOUT_4: found while checking the round-3 fixes (Nov 21, 2026). Labels set before scoring; scored once before
+# any rule change (1 of 7 emergencies, 0 of 2 nurse checks), then fixed, so it now counts as tuning data too.
+HELDOUT_4 = [
+    (E, "plain", "my husband won't wake up"),
+    (E, "plain", "she is not responding"),
+    (E, "plain", "everything went black"),
+    (E, "plain", "I have a gun and I'm thinking about using it"),
+    (E, "plain", "my blood sugar is 40"),
+    (E, "plain", "I'm seeing double and can't walk straight"),
+    (E, "plain", "my leg is swollen and hot and I can't breathe well"),
+    (R, "vague", "I can't stop shaking and I'm sweating"),
+    (R, "vague", "my heart is beating out of my chest"),
+]
+
+# Traps added with the round-4 fixes (tuning data).
+TUNING += [
+    (OK, "fuzzy_trap", "my teenager won't wake up for school"),
+    (OK, "fuzzy_trap", "my son is not responding to the antibiotics"),
+    (OK, "fuzzy_trap", "my blood sugar is 140 in the morning"),
+    (OK, "fuzzy_trap", "I've been eating less sugar for 20 days"),
+    (OK, "fuzzy_trap", "I keep my gun locked in a safe"),
+    (OK, "fuzzy_trap", "I can't wake up early for appointments"),
 ]

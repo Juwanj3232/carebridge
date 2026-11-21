@@ -28,7 +28,7 @@ const TEXT = {
     safetyTitle: 'How the AI stays safe',
     safety: [
       'Plain-code red-flag rules run before any AI and can block it',
-      'Misspellings like "chest pian" still trigger them: tested on 272 phrasings in English, Spanish and French, every emergency caught, 0 false alarms',
+      'Misspellings like "chest pian" still trigger them: tested on 341 phrasings in English, Spanish and French: every emergency in the test set caught, 0 false alarms',
       "After-visit summaries come only from the doctor's notes",
       'Doctor reviews and presses "Approve and send" before the patient sees anything',
       'Patient questions are answered only from the approved summary; everything else goes to staff',
@@ -74,7 +74,7 @@ const TEXT = {
     safetyTitle: 'Cómo se mantiene segura la IA',
     safety: [
       'Reglas de señales de alarma en código simple se ejecutan antes de cualquier IA y pueden bloquearla',
-      'Errores de ortografía como "chest pian" también las activan: probado con 272 frases en inglés, español y francés, todas las emergencias detectadas, 0 falsas alarmas',
+      'Errores de ortografía como "chest pian" también las activan: probado con 341 frases en inglés, español y francés: todas las emergencias del conjunto de prueba detectadas, 0 falsas alarmas',
       'Los resúmenes posteriores a la visita salen solo de las notas del médico',
       'El médico revisa y pulsa "Aprobar y enviar" antes de que el paciente vea nada',
       'Las preguntas del paciente se responden solo con el resumen aprobado; todo lo demás va al personal',
@@ -120,7 +120,7 @@ const TEXT = {
     safetyTitle: "Comment l'IA reste sûre",
     safety: [
       "Des règles de signaux d'alerte en code simple s'exécutent avant toute IA et peuvent la bloquer",
-      'Les fautes de frappe comme « chest pian » les déclenchent aussi : testé sur 272 formulations en anglais, espagnol et français, toutes les urgences détectées, 0 fausse alerte',
+      'Les fautes de frappe comme « chest pian » les déclenchent aussi : testé sur 341 formulations en anglais, espagnol et français : toutes les urgences du jeu de test détectées, 0 fausse alerte',
       'Les résumés après la visite proviennent uniquement des notes du médecin',
       'Le médecin relit et appuie sur « Approuver et envoyer » avant que le patient ne voie quoi que ce soit',
       "Les questions du patient reçoivent une réponse uniquement à partir du résumé approuvé ; le reste est transmis à l'équipe",

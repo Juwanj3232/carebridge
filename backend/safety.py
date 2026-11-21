@@ -53,15 +53,20 @@ RED_FLAGS: list[tuple[str, str, list[str]]] = [
         r"short(ness)? of breath", r"cant catch my breath", r"(barely|hardly) (breathe|breathing|breath)", r"(isnt|is not|not|stopped) breathing",
         r"(breathing|breathe) is (really |very |so )?(hard|difficult)", r"gasping", r"choking",
         r"lips (are |is )?(turning |going )?(blue|purple|gray|grey)",
+        r"(baby|infant|newborn|child|kid|toddler|son|daughter|he|she|face|skin) (is |looks |went |turned |is turning |is going |turning )(blue|purple|gray|grey)",
         r"(cant|cannot|can not) (get|take) (any |enough )?(air|a breath)",
         r"no puedo respirar", r"dificultad para respirar", r"falta de aire", r"me falta el aire", r"me ahogo",
         r"(peux|peut|arrive|narrive|parviens) (pas|plus) a respirer", r"(peux|peut) (pas|plus) respirer",
         r"(difficulte|difficultes|du mal) a respirer", r"manque dair", r"metouffe", r"levres (bleues|violettes)",
+        r"(bebe|nino|nina|hijo|hija) (esta |se puso |se esta poniendo )?(morad[oa]|azul)",
+        r"(bebe|enfant|fils|fille) (est |devient )(tout )?(bleu|violet)\w*",
     ]),
     ("self_harm", "Suicidal thoughts / self-harm", [
         r"suicid\w*", r"kill?(ing)? my ?self", r"end(ing)? my life", r"want(ing)? to die", r"better off dead",
         r"hurt(ing)? my ?self", r"self harm", r"overdos\w*", r"kms", r"unalive\w*", r"end(ing)? it (all|tonight|today|now)", r"going to end it",
         r"(dont|do not) want to (be alive|live|be here)", r"pills to (end it|die|end my life)",
+        r"(gun|pistol|rifle|weapon|knife|rope) .{0,40}(use it|using it|end it|on myself|kill|hurt)",
+        r"(thinking about|planning to|going to|want to) (shoot|hang|stab) my ?self",
         r"quiero morir", r"matarme", r"me quiero matar", r"quitarme la vida", r"hacerme dano",
         r"me (tuer|suicider)", r"(envie de|veux) mourir", r"d?en finir", r"mettre fin a (mes jours|ma vie)", r"me faire du mal",
         r"surdose",
@@ -78,6 +83,10 @@ RED_FLAGS: list[tuple[str, str, list[str]]] = [
     ("stroke", "Possible stroke signs", [
         r"face (is |went |looks |feels )?(drooping|droop\w*)", r"slur\w* speech", r"(having|is having|had) a stroke", r"(cant|cannot) (speak|talk|move my)",
         r"(sudden )?(numb|weak)(ness)? on one side",
+        r"(cant|cannot|can not) feel (my |his |her )?(legs?|arms?|face|feet|foot|side)",
+        r"(cant|cannot|can not) walk (straight|properly|right|in a straight line)",
+        r"no (siento|puedo sentir) (las |mis |el |la |los )?(piernas?|brazos?|cara|pies?)",
+        r"(sens|sent) (plus|pas) (mes |ses |la |le )?(jambes?|bras|visage|pieds?)",
         r"(one|left|right) side of (my |his |her )?(body|face) (is |went |feels )?(numb|weak|droop\w*)",
         r"worst headache", r"thunderclap headache",
         r"cara caida", r"no puedo hablar",
@@ -87,6 +96,10 @@ RED_FLAGS: list[tuple[str, str, list[str]]] = [
     ("collapse", "Fainting / seizure / unresponsive", [
         r"passed out", r"pass(ed|ing)? out", r"faint(ed|ing)", r"black(ed|ing) out", r"seizures?", r"convulsions?",
         r"unconscious", r"unresponsive", r"collapsed", r"(not|isnt|wont|wasnt) waking up",
+        r"(wont|will not|doesnt|isnt|is not) wake up(?! (for|in time|early|on time|in the morning))",
+        r"(cant|cannot|can not|couldnt) wake (him|her|them|my \w+|the baby|the \w+) up",
+        r"(he|she|they|baby|husband|wife|mom|dad|mother|father|son|daughter|child|kid|partner|grandma|grandpa) (is not|isnt|wont|will not|stopped|is) (responding|responsive)(?! to\b)",
+        r"(everything|it all|my vision) (went|goes|is going|turned|started going) (black|dark)",
         r"me desmaye", r"desmayo", r"convulsion(es)?",
         r"evanoui\w*", r"perdu connaissance", r"crise (depilepsie|convulsive)", r"inconscient\w*", r"(se )?reveille pas",
     ]),
@@ -96,13 +109,46 @@ RED_FLAGS: list[tuple[str, str, list[str]]] = [
         r"garganta (cerrada|hinchada)",
         r"gorge (qui se ferme|se ferme|serree|gonflee|enflee)", r"(langue|levres|visage) (a )?(gonfle|enfle)\w*", r"choc anaphylactique",
     ]),
+    ("poisoning", "Overdose / poisoning", [
+        r"(took|taken|take|swallowed|ate|had) (way )?too many (of (my|his|her|the) )?(\w+ )?(pills|tablets|meds|medicines?|medications?|capsules)",
+        r"(swallowed|drank|ate|ingested|drinking|eating) (some |a lot of |the |a )?(bleach|poison\w*|cleaner|detergent|antifreeze|drain cleaner|batter(y|ies)|laundry pods?|rat poison|pesticide|lighter fluid)",
+        r"(tome|tomo|se tomo|trago|me trague) (demasiadas|muchas) (pastillas|pildoras|medicinas)",
+        r"(trago|tomo|bebio|se tomo|comio) (cloro|lejia|veneno|detergente)",
+        r"(pris|avale) trop de (comprimes|medicaments|pilules|cachets)",
+        r"(avale|bu|mange) (de la |du |un |une )?(javel|poison|detergent|pile)",
+    ]),
+    ("dying", "Patient says they feel like they are dying", [
+        r"(feel|feels|feeling) like (im|i am|i was|i might be) dying",
+        r"(think|afraid|scared|worried|sure) (that )?(im|i am|i might be) dying",
+        r"(im|i am) dying(?! to\b)", r"(im|i am) (going to|gonna|about to) die",
+        r"me estoy muriendo", r"(siento que|creo que) me (muero|voy a morir)", r"me voy a morir",
+        r"je (suis en train de )?meurs(?! de (faim|soif|chaud|froid|rire|envie|fatigue))", r"(je vais|jai limpression de|jai peur de) mourir",
+    ]),
+    ("fever", "Very high fever (105 F / 40.5 C or more)", [
+        r"(fever|temperature|temp) (of |is |was |at |is at |hit |reached |reading )?(about |around |over )?(10[5-9]|4[1-3]|40 5)\b",
+        r"(10[5-9]|4[1-3]) (degree |degrees )?(f |c )?fever",
+        r"(fiebre|temperatura) (de |a )?(10[5-9]|4[1-3])\b",
+        r"(fievre|temperature) (de |a )?(10[5-9]|4[1-3])\b",
+    ]),
+    ("low_sugar", "Very low blood sugar", [
+        r"(blood sugar|sugar|glucose|bg) (level )?(is |was |at |of |reading |dropped to |down to |went down to )?(about |around |under |below |only )?([1-5]\d)\b",
+        r"(azucar|glucosa) (esta |en |de )?([1-5]\d)\b", r"(glycemie|sucre) (est |a |de )?([1-5]\d)\b",
+    ]),
+    ("head_injury", "Head injury with warning signs", [
+        r"(hit|hurt|bumped|banged|injured|smacked) (my |his |her |their )?head .{0,40}(confus\w*|passed out|vomit\w*|throwing up|cant remember|knocked out|drowsy)",
+        r"(confus\w*|vomit\w*|throwing up) .{0,30}(hit|hurt|bumped|banged) (my |his |her |their )?head",
+        r"knocked (out|unconscious)",
+        r"(golpe|me golpee|se golpeo) (en )?la cabeza .{0,40}(confundid\w*|vomit\w*|desmay\w*)",
+        r"(cogne|frappe) la tete .{0,40}(confus\w*|vomi\w*|evanoui\w*)",
+    ]),
 ]
 
 # Vague-but-worrying phrases: not on the red-flag list, but a human should check soon.
 REVIEW_FLAGS: list[tuple[str, str, list[str]]] = [
     ("heart_vague", "Vague heart symptom", [
         r"heart (feels|is|has been|keeps)? ?(weird|funny|strange|off|wrong|racing|pounding|fluttering|skipping|jumping)",
-        r"(racing|pounding|fluttering|skipping) heart", r"palpitations?", r"heart (beat|beating) (fast|weird|funny|irregular)",
+        r"(racing|pounding|fluttering|skipping) heart", r"palpitations?",
+        r"heart (is )?(beating|pounding|racing) (out of my chest|so fast|really fast|very fast)", r"heart (beat|beating) (fast|weird|funny|irregular)",
         r"corazon (esta )?(raro|acelerado|late rapido)", r"palpitaciones",
         r"coeur (qui )?(bat (vite|fort|bizarrement)|semballe|bizarre)",
     ]),
@@ -110,7 +156,9 @@ REVIEW_FLAGS: list[tuple[str, str, list[str]]] = [
         r"(hard|harder) to breathe", r"winded", r"out of breath", r"wheez\w*", r"essouffl\w*",
     ]),
     ("neuro_vague", "Dizziness / confusion", [
-        r"(very|really|super|extremely) dizzy", r"room (is )?spinning", r"confus\w*", r"vision (is )?(blurry|blurred|changes?|went)",
+        r"(very|really|super|extremely) dizzy", r"room (is )?spinning", r"seeing double", r"double vision",
+        r"(cant stop|cannot stop|uncontrollabl\w*) (shaking|trembling)", r"(shaking|trembling|shaky) and (sweating|sweaty|clammy)",
+        r"(blood sugar|glucose) (is |was |at |of |reading )?(over |above )?([4-9]\d\d)\b", r"confus\w*", r"vision (is )?(blurry|blurred|changes?|went)",
         r"mareado", r"confundido", r"(tres|vraiment) etourdi\w*", r"la tete (me )?tourne", r"vision (floue|trouble)",
     ]),
     ("general_vague", "Patient says something feels very wrong", [
@@ -121,6 +169,17 @@ REVIEW_FLAGS: list[tuple[str, str, list[str]]] = [
     ("mental_health", "Mental health concern", [
         r"(hopeless|cant go on|no reason to live|depressed|panic attack)",
         r"sin esperanza", r"deprimid\w*", r"desespere\w*", r"deprime\w*",
+    ]),
+    ("severity_text", "Patient rates pain 9 or 10 out of 10", [
+        r"(9|10|nine|ten) (out of|outta|on a scale of) (10|ten)", r"(pain|dolor|douleur) (is |es |est )?(a |un )?(9|10) 10",
+        r"(9|10) (de|sobre) 10", r"(9|10) sur 10",
+    ]),
+    ("injury", "Recent accident or injury", [
+        r"(was|been|got|were|just had) (in )?(a |an )?(car |auto |motorcycle |bike |traffic )?(accident|crash|wreck|collision)",
+        r"hit by a (car|truck|bus|bike)", r"(tuve|tuvimos) un (accidente|choque)", r"(eu|fait) un accident",
+    ]),
+    ("infant_fever", "Fever in a baby", [
+        r"(baby|infant|newborn) .{0,25}(fever|temperature)", r"(bebe) .{0,25}(fiebre|fievre)",
     ]),
     ("pregnancy", "Pregnancy symptom", [
         r"pregnan\w* .*(bleeding|cramp|pain)", r"(bleeding|cramp\w*|pain) .*pregnan\w*", r"embarazada", r"enceinte",
@@ -226,8 +285,11 @@ _EXTRA_WORDS = """shortness seizure suicide suicidal fainted fainting overdose o
     unconscious unresponsive bleeding hurting myself chest pecho respirar""".split()
 _VOCAB = frozenset(w for _, _, pats in RED_FLAGS + REVIEW_FLAGS for p in pats for w in re.findall(r"[a-z]{3,}", p)) \
     | frozenset(_EXTRA_WORDS)
+# Rule words never used as spelling targets: short or common words whose real-word neighbours are everyday speech
+# ("doing", "drying" -> dying; "bills" -> pills; "heal", "heat" -> head). Typed correctly, they still match.
+_NOT_TARGETS = frozenset("dying blue head legs pills fever baby meds died".split())
 _TARGETS: dict[str, tuple[str, ...]] = {}
-for _w in sorted(w for w in _VOCAB if len(w) >= 4):
+for _w in sorted(w for w in _VOCAB if len(w) >= 4 and w not in _NOT_TARGETS):
     _TARGETS.setdefault(_w[0], tuple())
     _TARGETS[_w[0]] += (_w,)
 

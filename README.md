@@ -77,7 +77,7 @@ and the modules that use it, its red-flag rules in `backend/safety.py`, and test
 | `backend/scenarios.py` | Synthetic "Test Patient" cases. |
 | `frontend/` | React, Vite and Tailwind UI. `src/lib/i18n.js` and `src/lib/clinics-i18n.js` hold the English, Spanish and French text. |
 | `tests/test_backend.py` | Backend tests: safety, intake, summaries, Q&A, follow-up agent, languages, interpreter requests, AI cap. |
-| `tests/safety_cases.py` | The 272 safety test phrasings: misspellings, slang, Spanish, French, negations, routine messages, spelling traps. |
+| `tests/safety_cases.py` | The 341 safety test phrasings: misspellings, slang, Spanish, French, negations, judge-style messages, routine messages, spelling traps. |
 | `scripts/safety_benchmark.py` | Scores the safety screen on those phrasings and times it. |
 | `scripts/claude_live_check.py` | Runs each Claude step once and shows whether Claude answered. |
 | `docs/SAFETY_BENCHMARK.md` | Safety screen results and exactly how they were measured. |
@@ -99,9 +99,10 @@ Staff (Bearer token): `GET /api/staff/queue`, `/api/staff/inbox`, `/api/staff/vi
 ## Limits (say these before a judge finds them)
 
 * Demo only: synthetic data, an in-memory store that resets on restart, and demo-grade login. Not for real patient information.
-* Safety rules are keyword lists with spelling tolerance. On 272 test phrasings every emergency reached the 911 screen
-  with 0 false alarms, but on wording we had not tuned against, 27 of 31 were caught (`docs/SAFETY_BENCHMARK.md`).
-  Unusual wording can still be missed: "I feel like I'm dying, help" gets no flag today. That is why vague wording and
+* Safety rules are keyword lists with spelling tolerance. On 341 test phrasings every emergency reached the 911 screen
+  with 0 false alarms, but on wording we had not tuned against, 27 of 31 were caught, and 15 of 22 on judge-style messages written later
+  (`docs/SAFETY_BENCHMARK.md`).
+  Unusual wording can still be missed: "I got bit by a snake" gets no flag today. That is why vague wording and
   high discomfort go to a nurse, and staff always see the raw patient text.
 * Rules-mode Q&A is cautious: it escalates when unsure (for example "How long do I take it?"), which is the safe failure.
 * Spanish and French after-visit summaries need Claude; in rules mode the draft is English and the clinician is told so.

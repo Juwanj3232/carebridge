@@ -7,27 +7,28 @@ Live site: https://carebridge-ypuw.onrender.com/ · Staff sign-in: `dr.demo` / `
 
 ## Fix or rehearse before presenting
 
-1. **Judges will type their own emergency.** On 25 new emergency phrasings written for this prep (none tuned
-   against), 15 reached the 911 screen, 2 got a nurse check, and **8 got no flag**:
-   "I feel like I'm dying, help", "I took too many pills", "the baby is blue", "my baby has a fever of 105",
-   "my child swallowed bleach", "my stomach pain is 10 out of 10" (typed, not on the slider), "I can't feel my legs",
-   "I was in a car accident". Either add rules for these before judging, or know the answer in "Safety" below cold.
-2. **The For Clinics page says "every emergency caught".** That is true of the 272-phrasing test set, not of every
-   possible message. Say "every emergency in our test set", never "we catch every emergency".
+1. **Judges will type their own emergency. Fixed for the ones we found.** Messages a judge might type, written for
+   this prep, first caught 15 of 22 emergencies. "I feel like I'm dying, help", "I took too many pills", "the baby is
+   blue" and "my child swallowed bleach" got no flag. A second check found more, including "I have a gun and I'm
+   thinking about using it" and "my husband won't wake up" (1 of 7). All of these now reach the 911 screen and are in
+   the tests. New wording can still slip through: "I got bit by a snake" gets no flag today. Know the answer in
+   "Safety" below cold.
+2. **Say "every emergency in our test set", never "we catch every emergency".** The For Clinics page now says
+   "every emergency in the test set caught".
 3. **Open the live link 5 minutes early.** The free plan sleeps after 15 idle minutes and takes about a minute to wake.
    Waking or redeploying resets the demo to its five test patients.
 4. **Claude is on in the live site.** Q&A answers and summaries come from Claude there, not the rules. Rehearse the
    demo questions on the live site, not only on a laptop.
-5. **Decide pricing.** It is hidden from the app, but "how do you make money?" is nearly certain. See "Business".
 
 ## Numbers to know
 
 | Number | What it means |
 |---|---|
-| 272 | Safety test phrasings, in English, Spanish and French |
-| 177 of 177 | Emergencies in the test set sent to the 911 screen, with 0 false alarms on 55 routine messages |
+| 341 | Safety test phrasings, in English, Spanish and French |
+| 217 of 217 | Emergencies in the test set sent to the 911 screen, with 0 false alarms on 78 routine messages |
 | 27 of 31 | Emergencies caught on wording never tuned against (the honest number). The original screen caught 12 of 31 |
-| 0.1 ms | Time the safety screen takes per message |
+| 15 of 22 | Emergencies caught on judge-style messages before we fixed them. All 22 are caught now |
+| 0.1 ms | About how long the safety screen takes per message |
 | 43 | Automated backend tests |
 | 3 | Patient languages: English, Spanish, French. Any other language books an interpreter |
 | 300 | Daily cap on Claude calls (about 75 full visits); past it the app uses rules |
@@ -51,11 +52,12 @@ Live site: https://carebridge-ypuw.onrender.com/ · Staff sign-in: `dr.demo` / `
 ## Safety
 
 **"What if your rules miss an emergency?"**
-Say: "They can, and we measured how often. On wording we'd never seen, the rules caught 27 of 31. So the rules are
-never the only check: anything vague or high-discomfort goes to a nurse, staff always see the patient's own words,
-and every miss we find becomes a test and a rule." Then show `docs/SAFETY_BENCHMARK.md` if asked for method.
-Limit: the 8 misses listed above. If a judge finds one live, thank them, say it becomes test phrasing #273, and point
-to the nurse-check backstop.
+Say: "They can, and we measured how often. On wording we'd never seen, the rules caught 27 of 31. When we wrote
+messages a judge might type, they caught 15 of 22, so we fixed those and added them to the tests. That's why the rules
+are never the only check: anything vague or high-discomfort goes to a nurse, staff always see the patient's own
+words, and every miss we find becomes a test and a rule." Then show `docs/SAFETY_BENCHMARK.md` if asked for method.
+Limit: new wording still gets through, for example "I got bit by a snake". If a judge finds one live, thank them, say
+it becomes test phrasing #342, and point to the nurse-check backstop.
 
 **"Why not let the AI decide what's urgent?"**
 Say: "An emergency check has to give the same answer every time, run in a fraction of a millisecond, and keep working
@@ -84,22 +86,28 @@ Say: "We didn't take the code on trust. We checked it the way you'd check any ne
 does, not by reading how confident it sounds." Then name the checks:
 * **43 automated tests**, run with no internet and no AI, cover safety, summaries, Q&A, the
   follow-up texts, languages and the daily AI cap.
-* **The safety screen is measured, not assumed.** 272 test phrasings, including a held-out set written before the
-  last fixes and scored once (27 of 31). The misses were real, and we published them.
+* **The safety screen is measured, not assumed.** 341 test phrasings, including held-out sets labelled before
+  scoring and scored once (27 of 31, then 15 of 22 on judge-style messages). The misses were real, and we published them.
 * **Checks in a real browser.** Every page was opened in Chrome in light and dark mode, plus the French screens at
   phone width, and screenshots were checked for errors.
 * **The deploy was rehearsed.** The container was built and run locally exactly as the host runs it before going live.
 * **The riskiest parts have the simplest code.** The emergency check is plain rules anyone can read, not AI, and the
   AI's output is never shown to a patient before a doctor approves it.
 
-Have one concrete example ready of testing catching an AI-written mistake:
-* The first spelling tolerance read "I was cooking dinner" as "choking". We added a list of real words that are never
-  corrected.
-* The French symptom rules had a typo that meant they never matched anything. Testing French check-ins caught it.
+Three mistakes in AI-written code that our testing caught and we fixed:
+* **"Cooking" read as "choking".** The first version of spelling tolerance turned "I was cooking dinner" into a choking
+  emergency, a false alarm. The test set includes spelling traps like this on purpose. The fix is a list of real
+  dictionary words that are never "corrected" into an emergency word (`backend/fuzzy_guard.txt`).
+* **"Hart attack" read as "hard attack".** "Hart" is one letter from both "heart" and "hard", and the code picked "hard",
+  so a misspelled heart attack got no flag. The fix tries every equally close word, so "I think its a hart attack" now
+  shows staff: RED FLAG, "hart attack, read as heart attack".
+* **French symptom rules that never matched.** A typo in the French patterns meant no French symptom was ever
+  recognized, even though nothing crashed. Testing French check-ins caught it.
 
-Then add, in your own words, what the team itself reviewed: which files you read line by line, what you changed,
-and what you'd want an outside security and clinical review to look at before real patients. Only claim review you
-actually did.
+If asked how closely the team read the code itself, say: "We looked over the code, but mostly we checked results.
+After each change, we ran the app and looked at what it did. That's why the tests and the measured safety numbers
+matter: they check the code more thoroughly than reading it would. Before real patients, we'd get an outside
+security and clinical review."
 
 ## Privacy and records
 
@@ -128,16 +136,12 @@ patient's consent to receive texts.
 
 ## Business
 
-**"How do you make money?"** Team decision needed. The hidden placeholder was per provider per month: Basic $99
-(check-in), Plus $199 (adds the AI agenda), Complete $299 (adds after-visit summaries and Q&A), in
-`backend/savings.py`. Pick real numbers and be able to justify them.
-
 **"Who are your competitors?"** Judges may name check-in and patient-messaging tools such as Phreesia or Luma Health.
 Say: "Most tools stop at check-in. We help before, during, and after the visit." Check each competitor's current
 features before naming them; the table says "typical tool" on purpose.
 
 **"How will you get your first clinics?"** Free 30-day pilot with 2 or 3 local independent family medicine clinics,
-then paid. Strongest if you can quote one real receptionist or office manager.
+then paid.
 
 **"Does it save money?"** The calculator is hidden because its numbers were placeholders. Answer with the three
 savings you'd measure in a pilot: staff minutes per check-in, no-shows recovered, after-visit calls avoided.
@@ -153,7 +157,11 @@ Say: "The clinic's staff stay in charge. The screen only adds alerts, it never r
 staff always see the patient's own words."
 
 **"Will this scale?"** The demo is one small server with data in memory, chosen so no patient data is ever stored.
-A real product moves to a database and HIPAA-eligible hosting; the safety screen itself takes 0.1 ms per message.
+A real product moves to a database and HIPAA-eligible hosting; the safety screen itself takes about 0.1 ms per message.
 
-**"How did you build it?"** Answer honestly, including any AI coding tools the team used, and focus on the decisions
-the team made: rules before AI, doctor approval, measuring the safety screen, and the held-out test.
+**"How did you build it?"**
+Say: "We built it with two AI coding assistants, Claude Code and Gemini, which generated most of the code from our
+instructions. The whole team worked on the code together, and Carelle and Isaiah built the presentation. The
+design decisions were Juwan's and Karim's: safety rules before any AI, a doctor approving every summary, and
+measuring the safety screen on a test set we hadn't tuned against." Then point to "Claude helped write your code. How do you know it's right?"
+above.

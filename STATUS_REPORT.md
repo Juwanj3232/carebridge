@@ -1,19 +1,19 @@
 # CareBridge Status Report (Nov 21, 2026)
 
 ## Where we are
-CareBridge is a working app on GitHub at https://github.com/Juwanj3232/carebridge.
-It is ready to deploy to Render with one click, and the safety screen now has a measured result.
-Two steps still need the team's own accounts: the Render deploy itself, and the first live Claude call.
+CareBridge is a working app on GitHub at https://github.com/Juwanj3232/carebridge, live at
+https://carebridge-ypuw.onrender.com/ with Claude turned on. The safety screen has a measured result.
 
 ## Verified
 - 43 backend tests pass, with rapidfuzz installed and with the built-in fallback.
 - Check-in asks for a **preferred language**. Choosing another language (for example Vietnamese) books an interpreter:
   it shows in the staff queue, near the top of the agenda and in the EHR export.
 - The app caps Claude calls per day (`CAREBRIDGE_AI_DAILY_LIMIT`, default 300) and falls back to rules mode past it.
-- **Safety screen, measured on 272 test phrasings** in English, Spanish and French (misspellings, slang, negations,
-  routine messages): every one of 177 emergencies reached the 911 screen, all 40 nurse-check cases were flagged, and
-  0 of 55 routine messages raised a false alarm. Average screen time is 0.1 ms per message. On a held-out set written before the last
-  fixes, it caught 27 of 31 emergencies, up from 12 of 31 for the original screen. Method and caveats are in
+- **Safety screen, measured on 341 test phrasings** in English, Spanish and French (misspellings, slang, negations,
+  judge-style messages, routine messages): every one of 217 emergencies reached the 911 screen, all 46 nurse-check
+  cases were flagged, and 0 of 78 routine messages raised a false alarm. Average screen time is 0.13 ms per message.
+  On wording never tuned against: 27 of 31 emergencies (round 2, up from 12 of 31 for the original screen), 15 of 22
+  (judge-style round 3) and 1 of 7 (round 4). Those misses are now fixed. Method and caveats are in
   `docs/SAFETY_BENCHMARK.md`.
 - Misspellings are caught without AI: "chest pian" is read as "chest pain" and shown to staff that way.
 - **French** is a full patient language: screens, check-in prep, safety rules and messages, answers and follow-up texts.
@@ -23,13 +23,11 @@ Two steps still need the team's own accounts: the Render deploy itself, and the 
   port, runs as a non-root user, and screens a misspelled red flag correctly.
 - The live-check script runs end to end against that container. With no key it correctly reports rules mode.
 
-## Not verified yet (needs the team's accounts)
-- **Not deployed.** Nobody on the build side has Render access. Steps: click **Deploy to Render** in the README, or
-  choose New > Blueprint and pick the repo. Paste `ANTHROPIC_API_KEY` when asked and wait for the deploy.
-- **Claude has never been called with a real key.** After the deploy, run
-  `python3 scripts/claude_live_check.py --url <the Render URL>`. Every row should say `CLAUDE`. Or run it locally
-  with the key in `.env`.
-- **Slide QR code.** After the deploy: `.venv/bin/python scripts/make_qr.py <the Render URL>`, then put
+- **Deployed on Render** at https://carebridge-ypuw.onrender.com/. Its health check reports Claude mode, with Claude
+  calls counted against the daily cap. Every push to main redeploys it.
+
+## Not done yet
+- **Slide QR code.** `.venv/bin/python scripts/make_qr.py https://carebridge-ypuw.onrender.com/`, then put
   `docs/qr-live-demo.png` on the slide and scan it with a phone to check.
 
 ## Judge items
@@ -40,11 +38,11 @@ Two steps still need the team's own accounts: the Render deploy itself, and the 
 | 3 | Savings proof | Calculator hidden from the UI; logic kept for later |
 | 4 | EHR connection | Export to EHR built: clinical note and FHIR R4 bundle (mock) |
 | 5 | Privacy | Built for demo: test patients, staff login, doctor-only approval |
-| 6 | Urgent symptoms | Built and measured: plain-code red flags with spelling tolerance before any AI, 272-phrasing benchmark |
+| 6 | Urgent symptoms | Built and measured: plain-code red flags with spelling tolerance before any AI, 341-phrasing benchmark |
 | 7 | Summary source | Built: from doctor's notes, Approve and send |
 | 8 | Wrong explanations | Built: grounding check, Q&A escalation, required footer |
 | 9 | Non-smartphone users | Built: kiosk mode, large text, Spanish and French |
-| 10 | First customers | Plan line in app; receptionist interview still to do |
+| 10 | First customers | Plan in the judge prep (free 30-day pilot with 2 or 3 local clinics); no clinic staff interviewed yet |
 | 11 | Pricing | Hidden from the UI until the team settles it |
 | 12 | Wording | Fixed in app; slides not in repo |
 
@@ -62,7 +60,7 @@ and a simpler dashboard, after-visit page and For Clinics page.
 
 ## Known limits
 - The safety rules catch every phrasing in the test set, but new wording can still be missed. For example,
-  "I feel like I'm dying, help" gets no flag today. The nurse-check tier and the raw patient text on the dashboard are
+  "I got bit by a snake" gets no flag today. The nurse-check tier and the raw patient text on the dashboard are
   the backstop. Every miss found in a demo should become a new test phrasing and then a rule.
 - Spanish and French after-visit summaries need Claude. Without it, the draft is English and the clinician sees a note saying so.
 - Visits live in memory and reset when the server restarts or a free instance wakes up. Login is demo-grade, and the
@@ -74,6 +72,6 @@ and a simpler dashboard, after-visit page and For Clinics page.
 cd /Users/jayflm/dev/carebridge
 cd frontend && npm install && npm run build && cd ..
 python3 server.py                           # http://localhost:8100   staff: dr.demo / carebridge-demo
-python3 -m unittest discover -s tests       # 38 tests
+python3 -m unittest discover -s tests       # 43 tests
 python3 scripts/safety_benchmark.py         # safety numbers
 ```

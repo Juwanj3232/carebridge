@@ -72,9 +72,9 @@ class SafetyBenchmark(unittest.TestCase):
     """The measured phrasings (tests/safety_cases.py). Full report: python3 scripts/safety_benchmark.py"""
 
     def test_every_phrasing_gets_the_expected_tier(self):
-        from safety_cases import FRENCH, FRENCH_HELDOUT, HELDOUT_1, HELDOUT_2, TUNING
+        from safety_cases import FRENCH, FRENCH_HELDOUT, HELDOUT_1, HELDOUT_2, HELDOUT_3, HELDOUT_4, TUNING
         want = {"emergency": "emergency", "review": "urgent_review", "routine": "routine"}
-        every = TUNING + HELDOUT_1 + HELDOUT_2 + FRENCH + FRENCH_HELDOUT
+        every = TUNING + HELDOUT_1 + HELDOUT_2 + FRENCH + FRENCH_HELDOUT + HELDOUT_3 + HELDOUT_4
         wrong = [(text, expected, safety.screen(text).level) for expected, _, text in every
                  if safety.screen(text).level != want[expected]]
         self.assertEqual(wrong, [])
