@@ -1,0 +1,206 @@
+import { useEffect, useState } from 'react';
+import { AlertTriangle, ArrowRight, ClipboardEdit, Phone, RotateCcw, Siren, Sparkles, UserRound } from 'lucide-react';
+import { api } from '../lib/api.js';
+import { DURATIONS, t } from '../lib/i18n.js';
+
+const EMPTY = { name: '', insurance: 'ppo', symptoms: '', duration: '4-7 days', severity: 5, meds: '', allergies: '', reading_level: 'simple' };
+
+function severityTone(n) {
+  if (n >= 8) return 'bg-rose-100 text-rose-800';
+  if (n >= 5) return 'bg-amber-100 text-amber-800';
+  return 'bg-emerald-100 text-emerald-800';
+}
+
+export default function CheckIn({ lang, plans, preset, kiosk, showToast, onCheckedIn, goClinic }) {
+  const s = t(lang);
+  const [form, setForm] = useState(EMPTY);
+  const [scenario, setScenario] = useState(null);
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (preset) {
+      setForm({ ...EMPTY, ...preset.intake, reading_level: form.reading_level });
+      setScenario(preset.scenario);
+      setResult(null);
+      setError(null);
+    }
+  }, [preset]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const set = (k) => (e) => setForm({ ...form, [k]: k === 'severity' ? Number(e.target.value) : e.target.value });
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api('intake', {
+        method: 'POST',
+        body: { ...form, language: lang, channel: kiosk ? 'kiosk' : 'phone', scenario },
+      });
+      setResult(r);
+      onCheckedIn(r.visit_id);
+      showToast(r.safety.level === 'emergency' ? 'Red-flag alert sent to clinic staff' : 'Checked in. Clinic brief is ready for staff.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startOver = () => { setForm(EMPTY); setScenario(null); setResult(null); window.scrollTo({ top: 0 }); };
+
+  return (
+    <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-up">
+      <form onSubmit={submit} className="card p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h1 className="text-lg font-bold">{s.checkinTitle}</h1>
+            <p className="text-xs text-slate-500">{s.checkinSub}</p>
+          </div>
+          <ClipboardEdit className="w-5 h-5 text-teal-600 shrink-0" />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="name" className="label">{s.name}</label>
+            <input id="name" className="field" value={form.name} onChange={set('name')} placeholder="Test Patient …" autoComplete="off" />
+          </div>
+          <div>
+            <label htmlFor="insurance" className="label">{s.insurance}</label>
+            <select id="insurance" className="field" value={form.insurance} onChange={set('insurance')}>
+              {plans.map((p) => <option key={p.id} value={p.id}>{p.label} ({p.short})</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="symptoms" className="label">{s.symptoms}</label>
+          <textarea id="symptoms" rows={4} required className="field leading-relaxed" value={form.symptoms} onChange={set('symptoms')} placeholder={s.symptomsPh} />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="duration" className="label">{s.duration}</label>
+            <select id="duration" className="field" value={form.duration} onChange={set('duration')}>
+              {DURATIONS.map((d) => <option key={d} value={d}>{s.durations[d]}</option>)}
+            </select>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="severity" className="text-xs font-semibold text-slate-600">{s.severity}</label>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${severityTone(form.severity)}`}>{form.severity} / 10</span>
+            </div>
+            <input id="severity" type="range" min="1" max="10" value={form.severity} onChange={set('severity')} className="w-full accent-teal-700 cursor-pointer mt-1.5" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label htmlFor="meds" className="label">{s.meds}</label>
+            <input id="meds" className="field" value={form.meds} onChange={set('meds')} placeholder={s.medsPh} />
+          </div>
+          <div>
+            <label htmlFor="allergies" className="label">{s.allergies}</label>
+            <input id="allergies" className="field" value={form.allergies} onChange={set('allergies')} placeholder={s.allergiesPh} />
+          </div>
+          <div>
+            <label htmlFor="reading" className="label">{s.reading}</label>
+            <select id="reading" className="field" value={form.reading_level} onChange={set('reading_level')}>
+              <option value="simple">{s.simple}</option>
+              <option value="standard">{s.standard}</option>
+            </select>
+          </div>
+        </div>
+
+        {error && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{error}</p>}
+
+        <button type="submit" disabled={busy || !form.symptoms.trim()} className="btn-primary w-full">
+          <Sparkles className="w-4 h-4" /> {busy ? s.submitting : s.submit}
+        </button>
+        <p className="text-xs text-slate-500 flex items-center gap-1.5"><UserRound className="w-3.5 h-3.5" /> {s.frontDeskHelp}</p>
+      </form>
+
+      <ResultPanel s={s} result={result} kiosk={kiosk} goClinic={goClinic} startOver={startOver} />
+    </section>
+  );
+}
+
+function ResultPanel({ s, result, kiosk, goClinic, startOver }) {
+  if (!result) {
+    return (
+      <div className="card p-6 flex flex-col items-center justify-center text-center text-slate-500 min-h-[18rem]">
+        <ClipboardEdit className="w-8 h-8 text-slate-300 mb-3" />
+        <p className="text-sm max-w-sm">{s.prepEmpty}</p>
+      </div>
+    );
+  }
+  const level = result.safety.level;
+  const msg = result.safety.patient_message;
+  const prep = result.patient_prep;
+
+  return (
+    <div className="card p-5 sm:p-6 flex flex-col justify-between gap-4 animate-fade-up">
+      <div className="space-y-4">
+        {level === 'emergency' && (
+          <div role="alert" className="rounded-2xl border-2 border-rose-500 bg-rose-50 p-5 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-rose-600 text-white flex items-center justify-center animate-pulse"><Siren className="w-6 h-6" /></div>
+              <h2 className="text-xl font-extrabold text-rose-900">{msg.title}</h2>
+            </div>
+            <p className="text-base text-rose-950 leading-relaxed">{msg.body}</p>
+            {msg.crisis && <p className="text-base font-semibold text-rose-950">{msg.crisis}</p>}
+            <a href="tel:911" className="btn-danger w-full !text-base"><Phone className="w-5 h-5" /> Call 911</a>
+            <p className="text-xs text-rose-800">Clinic staff have already been alerted on their dashboard.</p>
+          </div>
+        )}
+
+        {level === 'urgent_review' && (
+          <div role="alert" className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 space-y-1.5">
+            <h2 className="text-base font-bold text-amber-900 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> {msg.title}</h2>
+            <p className="text-sm text-amber-950 leading-relaxed">{msg.body}</p>
+          </div>
+        )}
+
+        {prep && (
+          <>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h2 className="text-lg font-bold">{s.prepTitle}</h2>
+                <p className="text-xs text-slate-500">{s.prepSub}</p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">Organized</span>
+            </div>
+            <div className="bg-teal-50/70 border border-teal-200 rounded-xl p-4 space-y-2">
+              <h3 className="eyebrow text-teal-800">{s.plainSummary}</h3>
+              <p className="text-sm text-slate-800 leading-relaxed">{prep.summary}</p>
+            </div>
+            <div>
+              <h3 className="eyebrow text-slate-500 mb-2">{s.keyDetails}</h3>
+              <ul className="space-y-2 text-sm text-slate-700">
+                {prep.key_points.map((k) => (
+                  <li key={k.label} className="flex items-start gap-2"><span className="text-teal-700 font-bold">•</span><span><strong>{k.label}:</strong> {k.value}</span></li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <h3 className="eyebrow text-amber-800 mb-1.5">{s.questions}</h3>
+              <ul className="space-y-1 text-sm text-amber-950 list-disc list-inside">
+                {prep.questions.map((q) => <li key={q}>{q}</li>)}
+              </ul>
+            </div>
+          </>
+        )}
+      </div>
+
+      {kiosk ? (
+        <button type="button" onClick={startOver} className="btn-dark w-full !text-base"><RotateCcw className="w-4 h-4" /> {s.startOver}</button>
+      ) : (
+        <button type="button" onClick={goClinic} className="btn-dark w-full">
+          Open the Clinic Dashboard (Step 2, staff view) <ArrowRight className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+}

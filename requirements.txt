@@ -1,0 +1,4 @@
+# CareBridge runs on the Python standard library alone (python3 server.py).
+# Both packages below are OPTIONAL: install them only to turn on Claude for the agenda, summaries and Q&A.
+anthropic==1.15.0
+python-dotenv==1.2.4
