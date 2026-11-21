@@ -1,4 +1,4 @@
-# CareBridge: Family Medicine Pre-Visit Check-In
+# CareBridge: Family Medicine Pre-Visit Check-In | Team Name: GAP - Guiding appointments post & pre
 
 A pre-visit check-in app for family medicine clinics. A Python API makes every decision, and a React frontend shows it
 to patients and staff.
